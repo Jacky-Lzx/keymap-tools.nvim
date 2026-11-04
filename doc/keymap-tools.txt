@@ -1,0 +1,76 @@
+*keymap-tools.txt*       Bottom-right keymap hints and executable keymap picker
+
+Requires Neovim 0.10+. selection-tools.nvim is required only for the picker.
+
+SETUP                                                   *keymap-tools-setup*
+>
+  require("keymap_tools").setup({
+    delay = 200,
+    triggers = { "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w>" },
+    modes = { "n", "x" },
+    groups = { ["<leader>s"] = "Search" },
+    win = { width = 48, height = 16, border = "rounded" },
+    picker = { key = "<leader>?" },
+  })
+<
+Set mapleader before setup. An existing picker binding is preserved. Disable
+which-key's automatic triggers before using this plugin on the same prefixes.
+Set picker.key=false to disable the default global binding. Set enabled=false
+to disable automatic hints while retaining the picker and explicit show().
+
+USAGE                                                   *keymap-tools-usage*
+
+Press a configured prefix and pause to see next keys at the bottom right.
+Continue typing to narrow or execute. <BS> moves up; <Esc>/<C-c> cancels.
+Unknown combinations replay normally, including Neovim built-in commands.
+Normal-mode counts and registers are preserved by automatic hints.
+
+<leader>? opens selection-tools with effective mappings for the current buffer
+and mode. Type to search, <C-n>/<C-p> to move, <CR> to execute, <Esc> to cancel.
+Buffer-local mappings override global ones. Visual selections are restored.
+Confirmation rejects replaced mappings and changed source windows.
+
+COMMAND                                                 *:KeymapTools*
+
+:KeymapTools [pick]      Search and execute current buffer mappings.
+:KeymapTools show        Open the interactive root hint.
+:KeymapTools hide        Close the hint.
+:KeymapTools refresh     Refresh automatic prefix triggers.
+
+API                                                     *keymap-tools-api*
+>
+  local tools = require("keymap_tools")
+  tools.pick()
+  tools.pick({ global = false })            -- Buffer-local only
+  tools.pick({ ["local"] = false })         -- Global only
+  tools.show({ keys = "<leader>s" })
+  tools.hide()
+  tools.refresh()
+  tools.get_keymaps({ buf = 0, mode = "n", plugs = false })
+<
+pick() accepts a picker table with selection-tools options, e.g. layout. It
+retains ownership of formatting, candidate validation and execution callbacks.
+The interactive UI supports n/x; get_keymaps() accepts other map modes too.
+Only explicitly registered mappings appear, not a catalog of built-in commands.
+
+Entries: lhs, raw keys, mode, scope ("global"/"buffer"), desc, buf, map.
+Automatic triggers are omitted from results. <Plug> targets are hidden unless
+plugs=true; replay still follows <Plug> chains. Execution uses Neovim remapping,
+preserving Lua callbacks, expr mappings and native RHS handling.
+
+Existing exact mappings on trigger prefixes are preserved; use show() to inspect
+their descendants. Triggers refresh on safe idle, buffer, filetype and LSP
+events, and are suspended during macro recording. Group labels are display
+metadata; they do not create mappings. The window clips by terminal cell width
+and indicates overflow; type another key to narrow the list.
+
+HIGHLIGHTS                                              *keymap-tools-highlights*
+
+KeymapToolsNormal       NormalFloat
+KeymapToolsBorder       FloatBorder
+KeymapToolsKey          Special
+KeymapToolsGroup        Title
+
+See README.md for the local lazy.nvim installation example and test command.
+
+vim:tw=78:ts=8:ft=help:norl:
