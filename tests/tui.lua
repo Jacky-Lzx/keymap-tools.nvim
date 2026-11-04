@@ -55,7 +55,11 @@ require("selection_tools").select = function(...)
   latest_picker = select_items(...)
   return latest_picker
 end
-tools.setup({ delay = 50, groups = { ["<leader>s"] = "Search actions" } })
+tools.setup({ hints = { delay = 50 } })
+tools.register("test", { groups = { { prefix = "<leader>s", label = "Search actions" } } })
+vim.keymap.set({ "n", "x" }, "<leader>?", function()
+  tools.pick()
+end, { desc = "Choose buffer keymap" })
 local stage, ticks, picker, finished = "start", 0, nil, false
 local function mark(value)
   vim.fn.writefile({ value }, directory .. "/stage")
@@ -185,7 +189,7 @@ timer:start(
       elseif stage == "done" and picker.closed then
         assert(vim.api.nvim_get_current_win() == origin)
         assert(hits == 2 and global_hits == 0 and expr_hits == 1 and plug_hits == 1 and visual_hits == 1)
-        tools.setup({ enabled = false, picker = { key = false } })
+        tools.setup({ hints = { enabled = false } })
         assert(#require("keymap_tools.hints").triggers == 0)
         finished = true
         timer:stop()

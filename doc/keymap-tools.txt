@@ -1,108 +1,120 @@
-*keymap-tools.txt*       Bottom-right keymap hints and executable keymap picker
+*keymap-tools.txt*       Bottom-right hints and executable mapping picker
 
-Requires Neovim 0.10+. selection-tools.nvim is required only for the picker.
+Requires Neovim 0.10+. selection-tools.nvim is needed only for the picker.
 
 SETUP                                                   *keymap-tools-setup*
 >
-  require("keymap_tools").setup({
-    delay = 200,
-    triggers = { "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w>" },
-    modes = { "n", "x", "o" },
+  local tools = require("keymap_tools")
+  tools.setup({
+    hints = { enabled = true, delay = 200, operators = true },
+    window = { width = 48, height = 16, border = "rounded" },
+    picker = {},
     presets = true,
     providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
-    groups = { ["<leader>s"] = "Search" },
-    win = { width = 48, height = 16, border = "rounded" },
-    picker = { key = "<leader>?" },
   })
+  vim.keymap.set({ "n", "x" }, "<leader>?", tools.pick,
+    { desc = "Choose and execute buffer keymap" })
 <
-Set mapleader before setup. An existing picker binding is preserved. Disable
-which-key's automatic triggers before using this plugin on the same prefixes.
-Set picker.key=false to disable the default global binding. Set enabled=false
-to disable automatic hints while retaining the picker and explicit show().
+Set mapleader before registration. Setup creates no global picker shortcut.
+Automatic prefix rules use hints.triggers, a list of {prefix=...,modes={...}}.
+Defaults: leader, localleader, g, z, [, ], C-w in n/x/o. Lists replace defaults,
+including an empty list. hints.operators controls ModeChanged operator hints.
+Provider prefixes are controlled by provider options, subject to hints.enabled.
+Trigger modes are n/x/o/i/c. Disable competing hint plugins on those prefixes.
 
 USAGE                                                   *keymap-tools-usage*
 
-Press a configured prefix and pause to see next keys at the bottom right.
-Continue typing to narrow or execute. <BS> moves up; <Esc>/<C-c> cancels.
-Unknown combinations replay normally, including Neovim built-in commands.
-Normal-mode counts and registers are preserved by automatic hints.
+Pause after a prefix to see next keys; after d/c/y/gU/g@ for motions/textobjects.
+Type i/a to narrow textobjects, BS to go up, Esc/C-c to cancel. C-d/C-u pages long
+lists unless a candidate uses that key. Unknown sequences replay normally.
+Counts, registers, custom operators, native dot-repeat and undo are retained.
 
-Pause after d/c/y/gU/g@ to see operator motions and textobjects. Continue with
-i/a to see inner/around objects. Counts, selected registers, forced motion types,
-custom operator functions, dot-repeat and undo use Neovim's native behavior.
-Fast input and macro replay do not start automatic operator hints.
+" shows registers; C-r shows them in Insert/command-line mode. Clipboard contents
+are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;
+z= shows spelling suggestions; a numeric prefix such as 1z= keeps native behavior.
 
-Press " for registers, or <C-r> in Insert/command-line mode. Clipboard registers
-are listed without reading their contents unless providers.registers.clipboard
-is true. Press '/`/g'/g` for marks. Press z= for spelling suggestions, then type
-a displayed selector. Numbered commands such as 1z= keep their native behavior.
-<C-d>/<C-u> pages long hint lists unless a candidate uses that key.
-
-<leader>? opens selection-tools with effective mappings for the current buffer
-and mode. Type to search, <C-n>/<C-p> to move, <CR> to execute, <Esc> to cancel.
-Buffer-local mappings override global ones. Visual selections are restored.
-Confirmation rejects replaced mappings and changed source windows.
+The picker searches effective mappings for the current mode/buffer. Type to
+filter, C-n/C-p to navigate, CR to execute, Esc to cancel. The source window and
+Visual range are restored; changed mappings are rejected before replay.
 
 COMMAND                                                 *:KeymapTools*
 
-:KeymapTools [pick]      Search and execute current buffer mappings.
-:KeymapTools show        Open the interactive root hint.
-:KeymapTools hide        Close the hint.
+:KeymapTools [pick]      Search and execute actual effective mappings.
+:KeymapTools show        Open an interactive root hint.
+:KeymapTools hide        Close a hint.
 :KeymapTools refresh     Refresh automatic prefix triggers.
 
-API                                                     *keymap-tools-api*
+REGISTRATION                                            *keymap-tools-register*
+>
+  local handle = require("keymap_tools").register("mini.ai", {
+    modes = { "o", "x" },
+    groups = { { prefix = "i", label = "Inside" } },
+    hints = { { keys = "if", desc = "Inside function" } },
+  })
+  handle:replace({ modes = { "o", "x" }, hints = {
+    { keys = "if", desc = "Inside function" },
+  } })
+  handle:dispose()
+<
+Real mappings belong to vim.keymap.set(). Registration creates metadata only.
+A source ID has one registration per buffer scope plus one global registration.
+Omit buf for global; buf=0 captures the current buffer. Buffer wipe releases its
+registrations even before setup. Per-entry modes override registration modes.
+
+Conflict order: buffer before global, higher priority before lower, newest before
+older. Disposing an override reveals retained lower-priority sources. Repeated
+registration of the same source/scope invalidates the old handle. replace()
+validates before atomically replacing all data while retaining source/buffer.
+dispose() is idempotent and cannot remove a newer registration.
+
+label/desc/when/hidden may be functions receiving ctx: buf, win, mode, prefix,
+operator, count, register. win is absent for a buffer with no display window.
+Use ctx rather than implicit current-window state. Callback contexts and query
+rows are detached copies. Values are evaluated on query/open; callback failures
+are returned in query diagnostics. Group hidden=true also hides descendants.
+
+QUERY AND DISPLAY                                       *keymap-tools-api*
 >
   local tools = require("keymap_tools")
-  tools.pick()
-  tools.pick({ global = false })            -- Buffer-local only
-  tools.pick({ ["local"] = false })         -- Global only
-  tools.show({ keys = "<leader>s" })
+  local items, info = tools.list({
+    buf = 0, mode = "n", prefix = "<leader>g", scope = "effective",
+    kinds = { "mapping", "hint", "group", "provider", "choice" },
+  })
+  tools.show({ prefix = "<leader>g" })
+  tools.pick({ scope = "buffer", layout = { width = 0.7 } })
   tools.hide()
   tools.refresh()
-  tools.get_keymaps({ buf = 0, mode = "n", plugs = false })
-  tools.add({
-    { "<leader>s", group = "Search" },
-    { "<leader>ss", "<Cmd>setlocal spell!<CR>", desc = "Toggle spelling" },
-    { "iQ", mode = { "o", "x" }, desc = "Custom textobject" },
-  })
 <
-pick() accepts a picker table with selection-tools options, e.g. layout. It
-retains ownership of formatting, candidate validation and execution callbacks.
-The picker supports n/x. Hints support n/x/o and register providers in i/c.
-get_keymaps() accepts other map modes too. The picker/collection API lists only
-actual mappings. Virtual native descriptions and metadata appear only in hints.
+list() does not initialize UI. Rows have keys (canonical notation), kind, source,
+metadata_source, scope, buf, mode, desc, hidden and executable. Only actual
+mapping rows are executable. Empty groups are omitted. Plug targets require
+plugs=true; hidden rows require include_hidden=true. info contains context and
+errors (source/field/message). Internal keycodes/map dictionaries stay private.
 
-add() accepts nested spec lists with inherited mode/buffer. buffer=true/0 means
-the current buffer. desc/group can be strings or functions evaluated on opening.
-Buffer metadata overrides global metadata and is cleared on buffer wipe.
-hidden=true hides a row; cond=false suppresses metadata; both accept functions.
-The optional second positional field defines a real RHS/callback, with optional
-expr/remap/silent/nowait/replace_keycodes. Description-only entries do not create
-mappings. This is a focused registration API, not full which-key compatibility.
+Query scopes: effective resolves local overrides; global reads global data,
+including shadowed global maps; buffer reads only buffer data. Actual mappings
+have source="neovim"; metadata uses registration IDs; native rows use builtin:
+IDs. Pass win or buf to inspect another source. At an exact provider prefix,
+choice rows use the source window; no choices are generated without a window.
 
-presets=false disables native descriptions. Individual catalog flags are motions,
-navigation, windows, folds and textobjects. Actual mappings override presets.
-Provider flags accept false or {enabled=false}; spelling.suggestions defaults to
-20, with at most 62 selector keys. Default hint modes are {"n", "x", "o"}.
+The picker queries only actual effective mappings. Its scope filter restricts
+that effective set, excluding shadowed global maps. show()/pick() operate on the
+active source window; list() can inspect another window without changing focus.
 
-Entries: lhs, raw keys, mode, scope ("global"/"buffer"), desc, buf, map.
-Automatic triggers are omitted from results. <Plug> targets are hidden unless
-plugs=true; replay still follows <Plug> chains. Execution uses Neovim remapping,
-preserving Lua callbacks, expr mappings and native RHS handling.
+CONFIGURATION                                           *keymap-tools-options*
 
-Existing exact mappings on trigger prefixes are preserved; use show() to inspect
-their descendants. Triggers refresh on safe idle, buffer, filetype and LSP
-events, and are suspended during macro recording. Group labels are display
-metadata; they do not create mappings. The window clips by terminal cell width
-and indicates the visible page; type another key to narrow the list.
+hints.enabled/ delay/ operators/ triggers    Automatic hint behavior.
+window.width/ height/ border                Hint appearance.
+picker                                      selection-tools picker options.
+presets                                     true/false or individual catalog flags.
+providers                                   registers/marks/spelling options.
 
-HIGHLIGHTS                                              *keymap-tools-highlights*
+Preset flags: motions/navigation/windows/folds/textobjects. Provider options
+accept false or {enabled=false}; spelling.suggestions is 1..62 (default 20).
+No add()/get_keymaps() or positional registration API remains. Use register(),
+list(), hints/window options and explicit user key bindings.
 
-KeymapToolsNormal       NormalFloat
-KeymapToolsBorder       FloatBorder
-KeymapToolsKey          Special
-KeymapToolsGroup        Title
-
-See README.md for the local lazy.nvim installation example and test command.
+Highlights: KeymapToolsNormal, KeymapToolsBorder, KeymapToolsKey, KeymapToolsGroup.
+See README.md for installation and validation details.
 
 vim:tw=78:ts=8:ft=help:norl:

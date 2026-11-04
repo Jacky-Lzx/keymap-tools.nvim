@@ -2,7 +2,9 @@ local api = vim.api
 local keys = require("keymap_tools.keys")
 local maps = require("keymap_tools.maps")
 local view = require("keymap_tools.view")
-local catalog = require("keymap_tools.catalog")
+local query = require("keymap_tools.query")
+local registry = require("keymap_tools.registry")
+local context = require("keymap_tools.context")
 local providers = require("keymap_tools.providers")
 local M = { triggers = {}, suspended = false }
 local config
@@ -35,16 +37,18 @@ function M.refresh()
   end
   M.detach()
   local buf = api.nvim_get_current_buf()
-  if not config.enabled or vim.bo[buf].buftype ~= "" or vim.fn.reg_recording() ~= "" then
+  if not config.hints.enabled or vim.bo[buf].buftype ~= "" or vim.fn.reg_recording() ~= "" then
     return
   end
-  local modes = vim.deepcopy(config.modes)
-  if providers.enabled(config.providers, "registers") then
-    vim.list_extend(modes, { "i", "c" })
-  end
+  local modes = { "n", "x", "o", "i", "c" }
   for _, mode in ipairs(modes) do
-    local items, seen = catalog.collect({ buf = buf, mode = mode }, config), {}
-    local triggers = (mode == "i" or mode == "c") and {} or vim.deepcopy(config.triggers)
+    local items, seen = query.hints({ buf = buf, mode = mode }, config), {}
+    local triggers = {}
+    for _, trigger in ipairs(config.hints.triggers) do
+      if vim.tbl_contains(trigger.modes, mode) then
+        triggers[#triggers + 1] = trigger.prefix
+      end
+    end
     for raw in pairs(providers.prefixes(mode, config.providers)) do
       triggers[#triggers + 1] = keys.label(raw)
     end
@@ -55,7 +59,7 @@ function M.refresh()
         seen[raw] = true
         local trigger = { buf = buf, mode = mode, lhs = keys.label(raw) }
         trigger.callback = function()
-          M.show({ keys = lhs, mode = mode, automatic = true })
+          M.show({ prefix = lhs, mode = mode, automatic = true })
         end
         maps.internal[trigger.callback] = true
         vim.keymap.set(mode, trigger.lhs, trigger.callback, {
@@ -91,11 +95,8 @@ function M.hide()
 end
 
 local function run(state, opts)
-  local items, groups = catalog.collect(
-    { buf = state.buf, mode = state.mode, operator = state.operator, global = opts.global, ["local"] = opts["local"] },
-    config
-  )
-  local prefix = keys.raw(opts.keys or "")
+  local items, groups = query.hints(vim.tbl_extend("force", {}, state, { scope = opts.scope }), config)
+  local prefix = keys.raw(opts.prefix or "")
   local history = {}
   local expanded = {}
   local changed = true
@@ -130,21 +131,25 @@ local function run(state, opts)
       matches, exact = maps.match(items, prefix)
     end
     if #matches == 0 or (exact and (#matches == 1 or exact.map.nowait == 1)) then
-      M.replay(exact and exact.execute or prefix, exact and exact.execute and nil or state.count, state.register)
+      M.replay(
+        exact and exact.execute or prefix,
+        state.mode == "n" and not (exact and exact.execute) and state.count or 0,
+        state.mode == "n" and state.register or nil
+      )
       return
     end
     local elapsed = (vim.uv or vim.loop).hrtime() / 1e6 - started
     if exact and vim.o.timeout and elapsed >= vim.o.timeoutlen then
-      M.replay(prefix, state.count, state.register)
+      M.replay(prefix, state.mode == "n" and state.count or 0, state.mode == "n" and state.register or nil)
       return
     end
     local size = vim.o.columns .. ":" .. vim.o.lines
-    if elapsed >= (opts.automatic and config.delay or 0) and (changed or last_size ~= size) then
+    if elapsed >= (opts.automatic and config.hints.delay or 0) and (changed or last_size ~= size) then
       view.show(
         maps.children(matches, prefix, groups),
         prefix,
         state.mode == "o" and ("o · " .. state.operator) or state.mode,
-        config.win
+        config.window
       )
       changed, last_size = false, size
     end
@@ -186,6 +191,10 @@ end
 
 function M.show(opts)
   opts = opts or {}
+  assert(
+    opts.keys == nil and opts.global == nil and opts["local"] == nil,
+    "keymap-tools: show() accepts prefix and scope"
+  )
   if M.session then
     return false
   end
@@ -193,14 +202,10 @@ function M.show(opts)
   if not vim.tbl_contains({ "n", "x", "o", "i", "c" }, mode) then
     return false
   end
-  local state = {
-    buf = api.nvim_get_current_buf(),
-    win = api.nvim_get_current_win(),
-    mode = mode,
-    count = mode == "n" and vim.v.count or 0,
-    register = mode == "n" and vim.v.register or nil,
-    operator = mode == "o" and vim.v.operator or nil,
-  }
+  local state = context.resolve(opts)
+  if state.win ~= api.nvim_get_current_win() or state.mode ~= keys.mode() then
+    return false
+  end
   M.session = state
   local ok, err = pcall(run, state, opts)
   M.hide()
@@ -230,20 +235,14 @@ function M.setup(opts)
     end,
   })
   api.nvim_create_autocmd("RecordingEnter", { group = group, callback = M.detach })
-  api.nvim_create_autocmd("BufWipeout", {
-    group = group,
-    callback = function(ev)
-      require("keymap_tools.metadata").clear(ev.buf)
-    end,
-  })
   api.nvim_create_autocmd("ModeChanged", {
     group = group,
     callback = function()
       if
-        not config.enabled
+        not config.hints.enabled
         or M.session
         or keys.mode() ~= "o"
-        or not vim.tbl_contains(config.modes, "o")
+        or not config.hints.operators
         or vim.fn.reg_recording() ~= ""
         or vim.fn.reg_executing() ~= ""
       then
@@ -257,6 +256,7 @@ function M.setup(opts)
     end,
   })
   api.nvim_create_autocmd("ColorScheme", { group = group, callback = view.highlights })
+  registry.on_change(M.refresh)
   view.highlights()
   M.refresh()
 end

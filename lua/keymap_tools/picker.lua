@@ -1,21 +1,44 @@
 local api = vim.api
 local keys = require("keymap_tools.keys")
 local maps = require("keymap_tools.maps")
+local query = require("keymap_tools.query")
+local context = require("keymap_tools.context")
 local M = {}
 
 function M.open(opts)
   opts = opts or {}
+  assert(
+    opts.picker == nil and opts.global == nil and opts["local"] == nil,
+    "keymap-tools: pick() accepts scope and layout directly"
+  )
   local ok, selection = pcall(require, "selection_tools")
   if not ok then
     vim.notify("keymap-tools: install selection-tools.nvim to use the keymap picker", vim.log.levels.WARN)
     return false
   end
-  local origin = { win = api.nvim_get_current_win(), buf = api.nvim_get_current_buf(), mode = opts.mode or keys.mode() }
+  local origin = context.resolve(opts)
+  if origin.win ~= api.nvim_get_current_win() then
+    return false
+  end
   if origin.mode ~= "n" and origin.mode ~= "x" then
     vim.notify("keymap-tools: open the picker from Normal or Visual mode", vim.log.levels.WARN)
     return false
   end
-  local items = maps.available(vim.tbl_extend("force", {}, opts, { buf = origin.buf, mode = origin.mode }))
+  local config = require("keymap_tools.config").get()
+  local items =
+    query.collect(vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" } }), config)
+  if opts.prefix then
+    local prefix = keys.raw(opts.prefix)
+    items = vim.tbl_filter(function(item)
+      return item.keys:sub(1, #prefix) == prefix
+    end, items)
+  end
+  if opts.scope and opts.scope ~= "effective" then
+    assert(opts.scope == "global" or opts.scope == "buffer", "keymap-tools: invalid picker scope")
+    items = vim.tbl_filter(function(item)
+      return item.scope == opts.scope
+    end, items)
+  end
   if #items == 0 then
     vim.notify("keymap-tools: no mappings for this buffer and mode", vim.log.levels.INFO)
     return false
@@ -28,7 +51,14 @@ function M.open(opts)
     if not api.nvim_win_is_valid(origin.win) or api.nvim_win_get_buf(origin.win) ~= origin.buf then
       return false, "Source window changed; reopen the keymap picker"
     end
-    for _, current in ipairs(maps.collect({ buf = origin.buf, mode = origin.mode })) do
+    for _, current in
+      ipairs(
+        query.collect(
+          vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" }, include_hidden = true }),
+          config
+        )
+      )
+    do
       if current.keys == item.keys and maps.same(item, current) then
         return true
       end
@@ -37,7 +67,7 @@ function M.open(opts)
   end
   return selection.select(
     items,
-    vim.tbl_deep_extend("force", {}, opts.picker or {}, {
+    vim.tbl_deep_extend("force", {}, config.picker, opts, {
       prompt = "Buffer keymaps · " .. origin.mode,
       resume = false,
       preview = { enabled = false },

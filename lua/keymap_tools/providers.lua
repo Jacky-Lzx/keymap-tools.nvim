@@ -109,13 +109,18 @@ function M.expand(prefix, state, config)
   if M.prefixes(state.mode, config)[prefix] == nil then
     return nil
   end
-  if prefix == '"' or prefix == keys.raw("<C-r>") then
-    return registers(prefix, config)
+  if not state.win or not vim.api.nvim_win_is_valid(state.win) then
+    return {}
   end
-  if prefix == "z=" then
-    return spelling(prefix, state, config)
-  end
-  return marks(prefix, state)
+  return vim.api.nvim_win_call(state.win, function()
+    if prefix == '"' or prefix == keys.raw("<C-r>") then
+      return registers(prefix, config)
+    end
+    if prefix == "z=" then
+      return spelling(prefix, state, config)
+    end
+    return marks(prefix, state)
+  end)
 end
 
 return M

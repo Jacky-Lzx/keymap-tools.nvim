@@ -1,6 +1,6 @@
 vim.opt.runtimepath:prepend(vim.fn.getcwd())
 local providers = require("keymap_tools.providers")
-local state = { mode = "n", buf = vim.api.nvim_get_current_buf(), count = 0 }
+local state = require("keymap_tools.context").resolve({ mode = "n", count = 0 })
 local original, clipboard_reads = vim.fn.getreg, 0
 vim.fn.getreg = function(key, ...)
   if key == "+" or key == "*" then
@@ -42,6 +42,6 @@ vim.keymap.set("n", "'", callback, { buffer = true })
 tools.setup()
 assert(vim.fn.maparg("<C-r>", "i", false, true).callback == callback)
 assert(vim.fn.maparg("'", "n", false, true).callback == callback)
-tools.setup({ enabled = false, picker = { key = false } })
+tools.setup({ hints = { enabled = false } })
 assert(vim.fn.maparg("<C-r>", "c") == "", "disabling must remove provider triggers too")
 print("PASS register contents, clipboard opt-in, mark positions, numbered spelling and existing mapping ownership")

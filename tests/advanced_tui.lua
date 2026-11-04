@@ -7,7 +7,7 @@ local tools = require("keymap_tools")
 local view = require("keymap_tools.view")
 local keys = require("keymap_tools.keys")
 local directory = assert(vim.env.KEYMAP_TOOLS_TEST_DIR)
-tools.setup({ delay = 40, win = { height = 32 } })
+tools.setup({ hints = { delay = 40 }, window = { height = 32 } })
 local serial = 0
 local current_step = "startup"
 local function wait_for(fn, label)
@@ -119,13 +119,19 @@ local function check()
   line("third")
 
   local dynamic = "Dynamic object"
-  tools.add({ mode = "o", {
-    "iQ",
-    "iw",
-    desc = function()
-      return dynamic
-    end,
-  } })
+  vim.keymap.set("o", "iQ", "iw")
+  tools.register("test-object", {
+    modes = { "o" },
+    hints = {
+      {
+        keys = "iQ",
+        desc = function(ctx)
+          assert(ctx.mode == "o")
+          return dynamic
+        end,
+      },
+    },
+  })
   reset("custom value")
   send("d")
   hint("Around text object")
@@ -170,7 +176,7 @@ local function check()
   line("three four")
   assert(not view.win)
 
-  tools.setup({ delay = 40, win = { height = 6 } })
+  tools.setup({ hints = { delay = 40 }, window = { height = 6 } })
   local function provider(prefix)
     wait_for(function()
       return view.win and view.frame and view.frame.prefix == keys.raw(prefix)

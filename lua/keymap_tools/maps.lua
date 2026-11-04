@@ -29,17 +29,12 @@ function M.collect(opts)
       end
     end
   end
-  if opts.global ~= false then
+  if opts.scope ~= "buffer" then
     add(vim.api.nvim_get_keymap(mode), "global")
   end
   -- Local maps win even when their spelling differs (<Space> versus a literal space).
-  if opts["local"] ~= false then
+  if opts.scope ~= "global" then
     add(vim.api.nvim_buf_get_keymap(buf, mode), "buffer")
-  end
-  for raw, entry in pairs(require("keymap_tools.metadata").get(buf, mode)) do
-    if merged[raw] and entry.desc then
-      merged[raw].desc = entry.desc
-    end
   end
   local result = vim.tbl_values(merged)
   table.sort(result, function(a, b)
@@ -58,14 +53,6 @@ function M.same(a, b)
     end
   end
   return true
-end
-
--- Scope filters in executable UIs apply after local-over-global resolution.
-function M.available(opts)
-  local result = M.collect({ buf = opts.buf, mode = opts.mode, plugs = opts.plugs })
-  return vim.tbl_filter(function(item)
-    return (item.scope == "global" and opts.global ~= false) or (item.scope == "buffer" and opts["local"] ~= false)
-  end, result)
 end
 
 function M.match(items, prefix)
