@@ -36,6 +36,11 @@ function M.collect(opts)
   if opts["local"] ~= false then
     add(vim.api.nvim_buf_get_keymap(buf, mode), "buffer")
   end
+  for raw, entry in pairs(require("keymap_tools.metadata").get(buf, mode)) do
+    if merged[raw] and entry.desc then
+      merged[raw].desc = entry.desc
+    end
+  end
   local result = vim.tbl_values(merged)
   table.sort(result, function(a, b)
     return keys.label(a.keys) < keys.label(b.keys)
@@ -80,7 +85,7 @@ function M.children(items, prefix, groups)
   local children = {}
   for _, item in ipairs(items) do
     local suffix = item.keys:sub(#prefix + 1)
-    if item.keys:sub(1, #prefix) == prefix and suffix ~= "" then
+    if item.keys:sub(1, #prefix) == prefix and suffix ~= "" and not item.hidden then
       local token = keys.tokens(suffix)[1]
       local child = children[token] or { key = token, count = 0 }
       children[token] = child

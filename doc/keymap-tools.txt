@@ -7,7 +7,9 @@ SETUP                                                   *keymap-tools-setup*
   require("keymap_tools").setup({
     delay = 200,
     triggers = { "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w>" },
-    modes = { "n", "x" },
+    modes = { "n", "x", "o" },
+    presets = true,
+    providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
     groups = { ["<leader>s"] = "Search" },
     win = { width = 48, height = 16, border = "rounded" },
     picker = { key = "<leader>?" },
@@ -24,6 +26,17 @@ Press a configured prefix and pause to see next keys at the bottom right.
 Continue typing to narrow or execute. <BS> moves up; <Esc>/<C-c> cancels.
 Unknown combinations replay normally, including Neovim built-in commands.
 Normal-mode counts and registers are preserved by automatic hints.
+
+Pause after d/c/y/gU/g@ to see operator motions and textobjects. Continue with
+i/a to see inner/around objects. Counts, selected registers, forced motion types,
+custom operator functions, dot-repeat and undo use Neovim's native behavior.
+Fast input and macro replay do not start automatic operator hints.
+
+Press " for registers, or <C-r> in Insert/command-line mode. Clipboard registers
+are listed without reading their contents unless providers.registers.clipboard
+is true. Press '/`/g'/g` for marks. Press z= for spelling suggestions, then type
+a displayed selector. Numbered commands such as 1z= keep their native behavior.
+<C-d>/<C-u> pages long hint lists unless a candidate uses that key.
 
 <leader>? opens selection-tools with effective mappings for the current buffer
 and mode. Type to search, <C-n>/<C-p> to move, <CR> to execute, <Esc> to cancel.
@@ -47,11 +60,30 @@ API                                                     *keymap-tools-api*
   tools.hide()
   tools.refresh()
   tools.get_keymaps({ buf = 0, mode = "n", plugs = false })
+  tools.add({
+    { "<leader>s", group = "Search" },
+    { "<leader>ss", "<Cmd>setlocal spell!<CR>", desc = "Toggle spelling" },
+    { "iQ", mode = { "o", "x" }, desc = "Custom textobject" },
+  })
 <
 pick() accepts a picker table with selection-tools options, e.g. layout. It
 retains ownership of formatting, candidate validation and execution callbacks.
-The interactive UI supports n/x; get_keymaps() accepts other map modes too.
-Only explicitly registered mappings appear, not a catalog of built-in commands.
+The picker supports n/x. Hints support n/x/o and register providers in i/c.
+get_keymaps() accepts other map modes too. The picker/collection API lists only
+actual mappings. Virtual native descriptions and metadata appear only in hints.
+
+add() accepts nested spec lists with inherited mode/buffer. buffer=true/0 means
+the current buffer. desc/group can be strings or functions evaluated on opening.
+Buffer metadata overrides global metadata and is cleared on buffer wipe.
+hidden=true hides a row; cond=false suppresses metadata; both accept functions.
+The optional second positional field defines a real RHS/callback, with optional
+expr/remap/silent/nowait/replace_keycodes. Description-only entries do not create
+mappings. This is a focused registration API, not full which-key compatibility.
+
+presets=false disables native descriptions. Individual catalog flags are motions,
+navigation, windows, folds and textobjects. Actual mappings override presets.
+Provider flags accept false or {enabled=false}; spelling.suggestions defaults to
+20, with at most 62 selector keys. Default hint modes are {"n", "x", "o"}.
 
 Entries: lhs, raw keys, mode, scope ("global"/"buffer"), desc, buf, map.
 Automatic triggers are omitted from results. <Plug> targets are hidden unless
@@ -62,7 +94,7 @@ Existing exact mappings on trigger prefixes are preserved; use show() to inspect
 their descendants. Triggers refresh on safe idle, buffer, filetype and LSP
 events, and are suspended during macro recording. Group labels are display
 metadata; they do not create mappings. The window clips by terminal cell width
-and indicates overflow; type another key to narrow the list.
+and indicates the visible page; type another key to narrow the list.
 
 HIGHLIGHTS                                              *keymap-tools-highlights*
 

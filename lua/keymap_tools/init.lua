@@ -2,9 +2,11 @@ local M = {}
 local defaults = {
   enabled = true,
   delay = 200,
-  modes = { "n", "x" },
+  modes = { "n", "x", "o" },
   triggers = { "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w>" },
   groups = {},
+  presets = true,
+  providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
   win = { width = 48, height = 16, border = "rounded" },
   picker = { key = "<leader>?" },
 }
@@ -15,7 +17,7 @@ function M.setup(opts)
   local config = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
   assert(type(config.delay) == "number" and config.delay >= 0, "keymap-tools: delay must be nonnegative")
   for _, mode in ipairs(config.modes) do
-    assert(mode == "n" or mode == "x", "keymap-tools: automatic hints support n/x modes")
+    assert(mode == "n" or mode == "x" or mode == "o", "keymap-tools: automatic hints support n/x/o modes")
   end
   assert(config.win.width >= 1 and config.win.height >= 1, "keymap-tools: window dimensions must be positive")
   for _, entry in ipairs(installed) do
@@ -70,6 +72,13 @@ end
 
 function M.get_keymaps(opts)
   return require("keymap_tools.maps").collect(opts)
+end
+
+function M.add(spec)
+  require("keymap_tools.metadata").add(spec)
+  if configured then
+    require("keymap_tools.hints").refresh()
+  end
 end
 
 return M

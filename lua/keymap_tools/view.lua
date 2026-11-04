@@ -21,6 +21,7 @@ function M.hide()
     vim.api.nvim_buf_delete(M.buf, { force = true })
   end
   M.win, M.buf = nil, nil
+  M.prefix, M.offset, M.frame = nil, 0, nil
 end
 
 function M.highlights()
@@ -37,6 +38,11 @@ function M.show(children, prefix, mode, config)
   local bottom = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0)
   local width = math.max(1, math.min(config.width, vim.o.columns - 4))
   local height = math.max(1, math.min(#children, config.height, bottom - 3))
+  local page = #children > height and math.max(1, height - 1) or height
+  M.offset = M.prefix == prefix and (M.offset or 0) or 0
+  M.offset = math.min(M.offset, math.max(0, #children - page))
+  M.prefix = prefix
+  M.frame = { children = children, prefix = prefix, mode = mode, config = config, page = page }
   local key_width = 1
   for _, child in ipairs(children) do
     key_width = math.max(key_width, vim.fn.strdisplaywidth(keys.label(child.key)))
@@ -44,13 +50,15 @@ function M.show(children, prefix, mode, config)
   key_width = math.min(key_width, math.max(1, math.floor(width / 3)))
   local lines, spans = {}, {}
   for i = 1, height do
-    local child = children[i]
+    local child = children[M.offset + i]
+    if i > page then
+      lines[i] = clip((" %d-%d/%d  <C-d>/<C-u>"):format(M.offset + 1, M.offset + page, #children), width)
+      spans[i] = { key_end = 0, group = true }
+      break
+    end
     local label = clip(keys.label(child.key), key_width)
     local left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. "  "
     local desc = child.desc
-    if i == height and #children > height then
-      desc = ("… %d more; type a key to narrow"):format(#children - height + 1)
-    end
     lines[i] = clip(left .. desc, width)
     spans[i] = { key_end = math.min(#lines[i], #left), group = child.group }
   end
@@ -87,7 +95,7 @@ function M.show(children, prefix, mode, config)
     border = config.border,
     zindex = 60,
   }
-  if width >= 16 then
+  if width >= 16 and config.border ~= "none" and config.border ~= "" then
     win_config.title = clip(" " .. mode .. " · " .. (prefix == "" and "Keymaps" or keys.label(prefix)) .. " ", width)
     win_config.title_pos = "right"
   end
@@ -99,6 +107,15 @@ function M.show(children, prefix, mode, config)
     vim.wo[M.win].wrap = false
   end
   vim.cmd.redraw()
+end
+
+function M.scroll(direction)
+  if not M.frame then
+    return
+  end
+  local frame = M.frame
+  M.offset = math.max(0, (M.offset or 0) + direction * frame.page)
+  M.show(frame.children, frame.prefix, frame.mode, frame.config)
 end
 
 return M
