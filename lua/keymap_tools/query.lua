@@ -106,12 +106,9 @@ function M.collect(opts, config)
       end
     end
   end
-  table.sort(result, function(a, b)
-    if a.keys == b.keys then
-      return a.kind < b.kind
-    end
-    return keys.label(a.keys) < keys.label(b.keys)
-  end)
+  if opts.sort ~= false then
+    keys.sort(result)
+  end
   return result, { context = ctx, errors = errors }
 end
 
@@ -145,8 +142,10 @@ function M.list(opts)
 end
 
 function M.hints(ctx, config)
-  local rows =
-    M.collect(vim.tbl_extend("force", {}, ctx, { include_hidden = true, expand = false, unfiltered = true }), config)
+  local rows = M.collect(
+    vim.tbl_extend("force", {}, ctx, { include_hidden = true, expand = false, unfiltered = true, sort = false }),
+    config
+  )
   local items, groups = {}, {}
   for _, row in ipairs(rows) do
     if row.kind == "group" then

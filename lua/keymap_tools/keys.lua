@@ -15,6 +15,24 @@ function M.label(raw)
   return vim.fn.keytrans(raw)
 end
 
+-- Convert each key once, rather than crossing into Vimscript in the comparator.
+function M.sort(items, field)
+  field = field or "keys"
+  local labels = {}
+  for _, item in ipairs(items) do
+    local raw = item[field]
+    if labels[raw] == nil then
+      labels[raw] = M.label(raw)
+    end
+  end
+  table.sort(items, function(a, b)
+    if a[field] == b[field] then
+      return (a.kind or "") < (b.kind or "")
+    end
+    return labels[a[field]] < labels[b[field]]
+  end)
+end
+
 -- Split keytrans notation, retaining UTF-8 characters and special-key tokens.
 function M.tokens(raw)
   local text, result = M.label(raw), {}

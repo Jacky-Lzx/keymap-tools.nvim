@@ -36,11 +36,7 @@ function M.collect(opts)
   if opts.scope ~= "global" then
     add(vim.api.nvim_buf_get_keymap(buf, mode), "buffer")
   end
-  local result = vim.tbl_values(merged)
-  table.sort(result, function(a, b)
-    return keys.label(a.keys) < keys.label(b.keys)
-  end)
-  return result
+  return vim.tbl_values(merged)
 end
 
 function M.same(a, b)
@@ -89,9 +85,7 @@ function M.children(items, prefix, groups)
     child.group = group ~= nil or child.count > (child.item and 1 or 0)
     result[#result + 1] = child
   end
-  table.sort(result, function(a, b)
-    return keys.label(a.key) < keys.label(b.key)
-  end)
+  keys.sort(result, "key")
   return result
 end
 
