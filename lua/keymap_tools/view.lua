@@ -49,12 +49,14 @@ function M.show(children, prefix, mode, config)
   end
   local column_width = math.floor((width - gap * (columns - 1)) / columns)
   local height = math.max(1, math.min(math.ceil(#children / columns), config.height, bottom - 3))
+  local bordered = config.border ~= "none" and config.border ~= ""
   local footer = #children > height * columns and height > 1
   local rows = height - (footer and 1 or 0)
   local page = rows * columns
   M.offset = M.prefix == prefix and (M.offset or 0) or 0
   M.offset = math.min(M.offset, math.floor((#children - 1) / page) * page)
   M.prefix = prefix
+  local position = ("%d-%d/%d"):format(M.offset + 1, math.min(#children, M.offset + page), #children)
   M.frame = {
     children = children,
     prefix = prefix,
@@ -96,8 +98,7 @@ function M.show(children, prefix, mode, config)
     lines[row] = line
   end
   if footer then
-    lines[height] =
-      clip((" %d-%d/%d  <C-d>/<C-u>"):format(M.offset + 1, math.min(#children, M.offset + page), #children), width)
+    lines[height] = clip(bordered and " <C-d>/<C-u>" or (" " .. position .. "  <C-d>/<C-u>"), width)
     spans[#spans + 1] = { row = height - 1, start = 0, finish = #lines[height], hl = "KeymapToolsGroup" }
   end
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
@@ -124,7 +125,11 @@ function M.show(children, prefix, mode, config)
     border = config.border,
     zindex = 60,
   }
-  if width >= 16 and config.border ~= "none" and config.border ~= "" then
+  if bordered then
+    win_config.footer = footer and { { clip(" " .. position .. " ", width), "KeymapToolsGroup" } } or ""
+    win_config.footer_pos = "right"
+  end
+  if width >= 16 and bordered then
     win_config.title = clip(" " .. mode .. " · " .. (prefix == "" and "Keymaps" or key_label(prefix)) .. " ", width)
     win_config.title_pos = "right"
   end

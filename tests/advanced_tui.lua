@@ -211,6 +211,21 @@ local function check()
       return view.win and view.frame and view.frame.prefix == keys.raw(prefix)
     end, "provider " .. prefix)
   end
+  local function border_position()
+    vim.cmd.redraw()
+    local cfg = api.nvim_win_get_config(view.win)
+    local pos = vim.fn.win_screenpos(view.win)
+    local position = ("%d-%d/%d"):format(
+      view.offset + 1,
+      math.min(#view.frame.children, view.offset + view.frame.page),
+      #view.frame.children
+    )
+    local footer = ""
+    for col = pos[2] + 1, pos[2] + cfg.width do
+      footer = footer .. vim.fn.screenstring(pos[1] + cfg.height + 1, col)
+    end
+    assert(footer:sub(-#position - 1) == position .. " ", "page position missing from bottom-right border: " .. footer)
+  end
   for key in ("abcdefghijklmnopqrstuvwxyz"):gmatch(".") do
     vim.fn.setreg(key, "content " .. key)
   end
@@ -218,6 +233,7 @@ local function check()
   reset("x")
   send('"')
   provider('"')
+  border_position()
   local until_time = vim.uv.hrtime() + 450 * 1000000
   wait_for(function()
     return vim.uv.hrtime() >= until_time
@@ -227,10 +243,12 @@ local function check()
   wait_for(function()
     return view.offset > 0
   end, "scroll register list down")
+  border_position()
   send("\21")
   wait_for(function()
     return view.offset == 0
   end, "scroll register list up")
+  border_position()
   send("z")
   wait_for(function()
     return not view.win
