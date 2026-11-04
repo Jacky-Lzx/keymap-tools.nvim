@@ -8,37 +8,77 @@ local context = require("keymap_tools.context")
 local providers = require("keymap_tools.providers")
 local M = { triggers = {}, suspended = false }
 local config
+local pending
 
-local function owned(trigger)
-  if not api.nvim_buf_is_valid(trigger.buf) then
-    return false
-  end
-  for _, map in ipairs(api.nvim_buf_get_keymap(trigger.buf, trigger.mode)) do
-    if map.callback == trigger.callback then
-      return true
+-- Read each buffer/mode once, and never delete a mapping another owner replaced.
+local function installed(triggers)
+  local snapshots = {}
+  for _, trigger in ipairs(triggers) do
+    if api.nvim_buf_is_valid(trigger.buf) then
+      local buffer = snapshots[trigger.buf] or {}
+      snapshots[trigger.buf] = buffer
+      if not buffer[trigger.mode] then
+        local callbacks = {}
+        for _, map in ipairs(api.nvim_buf_get_keymap(trigger.buf, trigger.mode)) do
+          callbacks[keys.raw(map.lhs)] = map.callback
+        end
+        buffer[trigger.mode] = callbacks
+      end
     end
   end
-  return false
+  return snapshots
+end
+
+local function owned(trigger, snapshots)
+  local buffer = snapshots[trigger.buf]
+  return buffer and buffer[trigger.mode][trigger.raw] == trigger.callback
+end
+
+local function remove(trigger, snapshots)
+  if owned(trigger, snapshots) then
+    pcall(vim.keymap.del, trigger.mode, trigger.lhs, { buffer = trigger.buf })
+  end
+  maps.internal[trigger.callback] = nil
 end
 
 function M.detach()
+  pending = nil
+  local snapshots = installed(M.triggers)
   for _, trigger in ipairs(M.triggers) do
-    if owned(trigger) then
-      pcall(vim.keymap.del, trigger.mode, trigger.lhs, { buffer = trigger.buf })
-    end
-    maps.internal[trigger.callback] = nil
+    remove(trigger, snapshots)
   end
   M.triggers = {}
 end
 
+function M.request_refresh()
+  if pending then
+    return
+  end
+  local request = {}
+  pending = request
+  vim.schedule(function()
+    if pending == request then
+      M.refresh()
+    end
+  end)
+end
+
 function M.refresh()
+  pending = nil
   if not config or M.session or M.suspended then
     return
   end
-  M.detach()
   local buf = api.nvim_get_current_buf()
   if not config.hints.enabled or vim.bo[buf].buftype ~= "" or vim.fn.reg_recording() ~= "" then
+    M.detach()
     return
+  end
+  local previous, snapshots = M.triggers, installed(M.triggers)
+  local reusable, retained, desired = {}, {}, {}
+  for _, trigger in ipairs(previous) do
+    if trigger.buf == buf and owned(trigger, snapshots) then
+      reusable[trigger.mode .. "\0" .. trigger.raw] = trigger
+    end
   end
   local modes = { "n", "x", "o", "i", "c" }
   for _, mode in ipairs(modes) do
@@ -57,19 +97,35 @@ function M.refresh()
       local matches, exact = maps.match(items, raw)
       if #raw > 0 and not seen[raw] and #matches > 0 and (not exact or exact.virtual) then
         seen[raw] = true
-        local trigger = { buf = buf, mode = mode, lhs = keys.label(raw) }
-        trigger.callback = function()
-          M.show({ prefix = lhs, mode = mode, automatic = true })
-        end
-        maps.internal[trigger.callback] = true
-        vim.keymap.set(mode, trigger.lhs, trigger.callback, {
-          buffer = buf,
-          nowait = true,
-          silent = true,
-          desc = "keymap-tools prefix hint",
-        })
-        M.triggers[#M.triggers + 1] = trigger
+        desired[#desired + 1] = { buf = buf, mode = mode, lhs = keys.label(raw), raw = raw }
       end
+    end
+  end
+  M.triggers = {}
+  for _, candidate in ipairs(desired) do
+    local id = candidate.mode .. "\0" .. candidate.raw
+    local trigger = reusable[id]
+    if trigger then
+      retained[trigger] = true
+    else
+      trigger = candidate
+      local lhs, mode = trigger.lhs, trigger.mode
+      trigger.callback = function()
+        M.show({ prefix = lhs, mode = mode, automatic = true })
+      end
+      maps.internal[trigger.callback] = true
+      vim.keymap.set(mode, lhs, trigger.callback, {
+        buffer = buf,
+        nowait = true,
+        silent = true,
+        desc = "keymap-tools prefix hint",
+      })
+    end
+    M.triggers[#M.triggers + 1] = trigger
+  end
+  for _, trigger in ipairs(previous) do
+    if not retained[trigger] then
+      remove(trigger, snapshots)
     end
   end
 end
@@ -230,8 +286,13 @@ function M.setup(opts)
       if M.session then
         return
       end
-      M.suspended = false
-      M.refresh()
+      if M.suspended then
+        -- Replay has finished: restore triggers before the next input arrives.
+        M.suspended = false
+        M.refresh()
+      else
+        M.request_refresh()
+      end
     end,
   })
   api.nvim_create_autocmd("RecordingEnter", { group = group, callback = M.detach })
@@ -256,7 +317,7 @@ function M.setup(opts)
     end,
   })
   api.nvim_create_autocmd("ColorScheme", { group = group, callback = view.highlights })
-  registry.on_change(M.refresh)
+  registry.on_change(M.request_refresh)
   view.highlights()
   M.refresh()
 end

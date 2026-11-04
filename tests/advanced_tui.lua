@@ -48,6 +48,22 @@ local function line(text)
   end, "line " .. text)
 end
 local function check()
+  local burst = 0
+  vim.keymap.set("n", "<leader>sx", function()
+    burst = burst + 1
+  end, { desc = "Repeated prefix action" })
+  reset("burst")
+  send(string.rep(" sx", 40))
+  wait_for(function()
+    return burst == 40 and not view.win
+  end, "continuous rapid prefix input")
+  send(" s")
+  hint("Repeated prefix action")
+  send("\27")
+  wait_for(function()
+    return not view.win
+  end, "reattached prefix after rapid input")
+
   reset("one two three")
   send("d")
   hint("Around text object")
