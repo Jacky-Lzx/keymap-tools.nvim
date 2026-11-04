@@ -39,6 +39,9 @@ lists unless a candidate uses that key. Unknown sequences replay normally.
 Counts, registers, custom operators, native dot-repeat and undo are retained.
 Hints default to two columns, filled top to bottom and then left to right.
 Narrow windows fall back to one column; window.columns=1 forces one column.
+Space appears as ␣. Scrolling keys sit on the bottom-left border and the candidate
+range on the bottom-right border. Very narrow borders keep only the range;
+borderless hints use a content footer.
 
 " shows registers; C-r shows them in Insert/command-line mode. Clipboard contents
 are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;

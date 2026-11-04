@@ -40,9 +40,9 @@ for i = 1, 15 do
 end
 view.show(many, "page", "n", options)
 local seen = {}
-for page = 1, 4 do
+for page = 1, 3 do
   lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
-  for row = 1, #lines - 1 do
+  for row = 1, #lines do
     for _, cell in ipairs({ lines[row]:sub(1, 38), lines[row]:sub(42) }) do
       local key = cell:match("^ (.) ")
       if key then
@@ -51,18 +51,20 @@ for page = 1, 4 do
       end
     end
   end
-  if page < 4 then
+  if page < 3 then
     view.scroll(1)
   end
 end
 assert(vim.tbl_count(seen) == 15, "paging omitted candidates")
 local cfg = api.nvim_win_get_config(view.win)
-assert(cfg.footer_pos == "right" and cfg.footer[1][1] == " 13-15/15 ", "last-page count includes empty cells")
-assert(lines[#lines] == " <C-d>/<C-u>", "only scrolling controls should remain in the content footer")
+assert(cfg.footer_pos == "left" and cfg.footer[1][1] == " <C-d>/<C-u> ", "controls should start at bottom-left")
+assert(cfg.footer[3][1] == " 13-15/15 ", "last-page count includes empty cells")
+assert(vim.fn.strdisplaywidth(cfg.footer[1][1] .. cfg.footer[2][1] .. cfg.footer[3][1]) == 80)
+assert(view.frame.page == 6 and #lines == 3, "border controls should free the last content row")
 view.scroll(1)
 assert(view.offset == 12, "scrolling beyond the last page changed its start")
 view.scroll(-1)
-assert(view.offset == 8)
+assert(view.offset == 6)
 
 vim.o.columns = 40
 view.show(children, "", "n", options)
@@ -78,6 +80,20 @@ lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
 assert(lines[1]:find(" ␣ Space action", 1, true) == 1, "Space should use a compact visible glyph")
 assert(api.nvim_win_get_config(view.win).title[1][1] == " n · ␣g ", "prefix should use the same Space glyph")
 assert(require("keymap_tools.keys").label(" ") == "<Space>", "canonical key notation must remain replayable")
+for _, border in ipairs({ "none", "", "double", { "+", "-", "+", "|" } }) do
+  view.show(many, "border", "n", vim.tbl_extend("force", options, { border = border }))
+  cfg = api.nvim_win_get_config(view.win)
+  lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
+  if border == "none" or border == "" then
+    assert(cfg.footer == nil and view.frame.page == 4, "borderless hints should retain a content footer")
+    assert(lines[3] == " 1-4/15  <C-d>/<C-u>")
+  else
+    assert(cfg.footer[2][1] == string.rep(border == "double" and "═" or "-", 59))
+  end
+end
+view.show(many, "narrow", "n", vim.tbl_extend("force", options, { width = 16 }))
+cfg = api.nvim_win_get_config(view.win)
+assert(cfg.footer_pos == "right" and cfg.footer[1][1] == " 1-3/15 ", "narrow borders should keep the page position")
 view.hide()
 assert(not pcall(config.normalize, { window = { columns = 3 } }))
 print(

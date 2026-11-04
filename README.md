@@ -121,7 +121,10 @@ actual Neovim mappings always take precedence.
 
 `window.width` is the total hint width. `columns = 2` is the default; set it to
 `1` for a single column. Paging covers both columns and displays the actual range
-of candidates, including a partially filled final page.
+of candidates, including a partially filled final page. Space is displayed as `␣`.
+Bordered hints show scrolling keys at the bottom left and the candidate range at
+the bottom right, leaving all content rows available. Very narrow borders keep
+the range; borderless hints use a content footer.
 
 ## Register metadata
 

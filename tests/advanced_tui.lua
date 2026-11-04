@@ -225,6 +225,8 @@ local function check()
       footer = footer .. vim.fn.screenstring(pos[1] + cfg.height + 1, col)
     end
     assert(footer:sub(-#position - 1) == position .. " ", "page position missing from bottom-right border: " .. footer)
+    assert(footer:sub(1, 13) == " <C-d>/<C-u> ", "scrolling controls missing from bottom-left border: " .. footer)
+    assert(view.frame.rows == cfg.height, "border footer should leave every content row available")
   end
   for key in ("abcdefghijklmnopqrstuvwxyz"):gmatch(".") do
     vim.fn.setreg(key, "content " .. key)

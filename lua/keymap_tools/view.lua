@@ -17,6 +17,21 @@ local function clip(text, width)
   return result
 end
 
+local function footer_padding(border, width)
+  local char, hl = "─", "KeymapToolsBorder"
+  if type(border) == "table" and #border > 0 then
+    local edge = border[5 % #border + 1]
+    char = type(edge) == "table" and edge[1] or edge
+    hl = type(edge) == "table" and edge[2] or hl
+    char = char ~= "" and char or " "
+  elseif border == "double" then
+    char = "═"
+  elseif border == "solid" or border == "shadow" then
+    char = " "
+  end
+  return { string.rep(char, width), hl }
+end
+
 function M.hide()
   if M.win and vim.api.nvim_win_is_valid(M.win) then
     vim.api.nvim_win_close(M.win, true)
@@ -50,7 +65,8 @@ function M.show(children, prefix, mode, config)
   local column_width = math.floor((width - gap * (columns - 1)) / columns)
   local height = math.max(1, math.min(math.ceil(#children / columns), config.height, bottom - 3))
   local bordered = config.border ~= "none" and config.border ~= ""
-  local footer = #children > height * columns and height > 1
+  local overflow = #children > height * columns
+  local footer = overflow and not bordered and height > 1
   local rows = height - (footer and 1 or 0)
   local page = rows * columns
   M.offset = M.prefix == prefix and (M.offset or 0) or 0
@@ -98,7 +114,7 @@ function M.show(children, prefix, mode, config)
     lines[row] = line
   end
   if footer then
-    lines[height] = clip(bordered and " <C-d>/<C-u>" or (" " .. position .. "  <C-d>/<C-u>"), width)
+    lines[height] = clip(" " .. position .. "  <C-d>/<C-u>", width)
     spans[#spans + 1] = { row = height - 1, start = 0, finish = #lines[height], hl = "KeymapToolsGroup" }
   end
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
@@ -123,11 +139,24 @@ function M.show(children, prefix, mode, config)
     focusable = false,
     style = "minimal",
     border = config.border,
+    title = "",
+    footer = "",
     zindex = 60,
   }
-  if bordered then
-    win_config.footer = footer and { { clip(" " .. position .. " ", width), "KeymapToolsGroup" } } or ""
+  if bordered and overflow then
+    local counter = clip(" " .. position .. " ", width)
+    local controls = " <C-d>/<C-u> "
+    local padding = width - vim.fn.strdisplaywidth(counter) - #controls
+    win_config.footer = { { counter, "KeymapToolsGroup" } }
     win_config.footer_pos = "right"
+    if padding >= 1 then
+      win_config.footer = {
+        { controls, "KeymapToolsGroup" },
+        footer_padding(config.border, padding),
+        { counter, "KeymapToolsGroup" },
+      }
+      win_config.footer_pos = "left"
+    end
   end
   if width >= 16 and bordered then
     win_config.title = clip(" " .. mode .. " · " .. (prefix == "" and "Keymaps" or key_label(prefix)) .. " ", width)
