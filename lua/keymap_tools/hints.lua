@@ -1,7 +1,6 @@
 local api = vim.api
 local keys = require("keymap_tools.keys")
 local maps = require("keymap_tools.maps")
-local view = require("keymap_tools.view")
 local query = require("keymap_tools.query")
 local registry = require("keymap_tools.registry")
 local context = require("keymap_tools.context")
@@ -149,10 +148,14 @@ end
 
 function M.hide()
   M.session = nil
-  view.hide()
+  local view = package.loaded["keymap_tools.view"]
+  if view then
+    view.hide()
+  end
 end
 
 local function run(state, opts)
+  local view = package.loaded["keymap_tools.view"]
   local items, groups = query.hints(vim.tbl_extend("force", {}, state, { scope = opts.scope }), config)
   local prefix = keys.raw(opts.prefix or "")
   local history = {}
@@ -203,6 +206,8 @@ local function run(state, opts)
     end
     local size = vim.o.columns .. ":" .. vim.o.lines
     if elapsed >= (opts.automatic and config.hints.delay or 0) and (changed or last_size ~= size) then
+      view = view or require("keymap_tools.view")
+      view.highlights()
       view.show(
         maps.children(matches, prefix, groups),
         prefix,
@@ -233,7 +238,8 @@ local function run(state, opts)
       changed = true
       started = (vim.uv or vim.loop).hrtime() / 1e6
     elseif
-      view.win
+      view
+      and view.win
       and (char == keys.raw("<C-d>") or char == keys.raw("<C-u>"))
       and #maps.match(items, prefix .. char) == 0
     then
@@ -284,12 +290,13 @@ function M.setup(opts)
   local group = api.nvim_create_augroup("KeymapToolsHints", { clear = true })
   api.nvim_create_autocmd({ "SafeState", "BufEnter", "FileType", "LspAttach", "RecordingLeave" }, {
     group = group,
-    callback = function()
+    callback = function(ev)
       if M.session then
         return
       end
-      if M.suspended then
-        -- Replay has finished: restore triggers before the next input arrives.
+      if M.suspended or ev.event == "SafeState" then
+        -- Flush at idle without scheduling work that would cause another SafeState.
+        -- Replay recovery must also finish before the next input arrives.
         M.suspended = false
         M.refresh()
       else
@@ -318,9 +325,16 @@ function M.setup(opts)
       end
     end,
   })
-  api.nvim_create_autocmd("ColorScheme", { group = group, callback = view.highlights })
+  api.nvim_create_autocmd("ColorScheme", {
+    group = group,
+    callback = function()
+      local view = package.loaded["keymap_tools.view"]
+      if view then
+        view.highlights()
+      end
+    end,
+  })
   registry.on_change(M.request_refresh)
-  view.highlights()
   M.refresh()
 end
 

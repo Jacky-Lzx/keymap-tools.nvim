@@ -55,7 +55,7 @@ require("selection_tools").select = function(...)
   latest_picker = select_items(...)
   return latest_picker
 end
-tools.setup({ hints = { delay = 50 } })
+tools.setup({ defer = true, hints = { delay = 50 } })
 tools.register("test", { groups = { { prefix = "<leader>s", label = "Search actions" } } })
 vim.keymap.set({ "n", "x" }, "<leader>?", function()
   tools.pick()

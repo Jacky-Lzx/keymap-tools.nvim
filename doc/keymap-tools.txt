@@ -6,6 +6,7 @@ SETUP                                                   *keymap-tools-setup*
 >
   local tools = require("keymap_tools")
   tools.setup({
+    defer = true,
     hints = { enabled = true, delay = 200, operators = true },
     window = { width = 80, height = 16, columns = 2, border = "rounded" },
     picker = {},
@@ -21,6 +22,14 @@ Defaults: leader, localleader, g, z, [, ], C-w in n/x/o. Lists replace defaults,
 including an empty list. hints.operators controls ModeChanged operator hints.
 Provider prefixes are controlled by provider options, subject to hints.enabled.
 Trigger modes are n/x/o/i/c. Disable competing hint plugins on those prefixes.
+
+defer=true delays an early setup until VimEnter, before the first input. The
+default is false (synchronous setup). Explicit show/pick/refresh activate pending
+setup immediately; reconfiguring an active engine is always synchronous.
+With lazy.nvim, use event="VimEnter" and defer=true, and register selection-tools
+separately: only pick() needs it, so hints do not require an eager dependency.
+register() loads metadata storage only; list() does not initialize the hint engine
+or UI. Hint rendering loads on first display.
 
 USAGE                                                   *keymap-tools-usage*
 

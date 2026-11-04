@@ -56,7 +56,7 @@ hints.refresh = function(...)
   calls = calls + 1
   return refresh(...)
 end
-for _, event in ipairs({ "BufEnter", "FileType", "SafeState" }) do
+for _, event in ipairs({ "BufEnter", "FileType" }) do
   api.nvim_exec_autocmds(event, { group = "KeymapToolsHints", buffer = 0 })
 end
 assert(calls == 0, "automatic events must defer their scan")
@@ -65,17 +65,24 @@ assert(vim.wait(100, function()
 end))
 assert(calls == 1, "automatic events in one turn must share a scan")
 hints.request_refresh()
+api.nvim_exec_autocmds("SafeState", { group = "KeymapToolsHints" })
+assert(calls == 2, "SafeState must flush pending work synchronously without scheduling another idle cycle")
+vim.wait(10, function()
+  return false
+end)
+assert(calls == 2, "SafeState left a queued duplicate scan")
+hints.request_refresh()
 tools.refresh()
 vim.wait(10, function()
   return false
 end)
-assert(calls == 2, "explicit refresh must cancel the queued duplicate")
+assert(calls == 3, "explicit refresh must cancel the queued duplicate")
 hints.request_refresh()
 hints.detach()
 vim.wait(10, function()
   return false
 end)
-assert(calls == 2 and #hints.triggers == 0, "detach must cancel pending reattachment")
+assert(calls == 3 and #hints.triggers == 0, "detach must cancel pending reattachment")
 hints.refresh = refresh
 hints.refresh()
 local first = api.nvim_get_current_buf()

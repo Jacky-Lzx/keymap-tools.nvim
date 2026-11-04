@@ -15,16 +15,8 @@ Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
   dir = vim.fn.expand("~/Documents/Github/nvim_plugins/keymap-tools.nvim"),
   name = "keymap-tools.nvim",
   main = "keymap_tools",
-  lazy = false,
-  dependencies = {
-    {
-      dir = vim.fn.expand("~/Documents/Github/nvim_plugins/selection-tools.nvim"),
-      name = "selection-tools.nvim",
-      main = "selection_tools",
-      opts = {},
-    },
-  },
-  opts = { hints = { delay = 200 } },
+  event = "VimEnter",
+  opts = { defer = true, hints = { delay = 200 } },
   config = function(_, opts)
     local keymaps = require("keymap_tools")
     keymaps.setup(opts)
@@ -43,6 +35,27 @@ Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
 Set `mapleader` before registering keys. Disable other automatic hint plugins on
 the same prefixes. `setup()` installs automatic hint triggers, never a global
 picker shortcut; bind user actions explicitly with `vim.keymap.set()`.
+
+Register selection-tools separately if you use the picker; it can use `lazy = true`
+and will load on the first `pick()`. It is not a dependency of automatic hints:
+
+```lua
+{
+  dir = vim.fn.expand("~/Documents/Github/nvim_plugins/selection-tools.nvim"),
+  name = "selection-tools.nvim",
+  main = "selection_tools",
+  lazy = true,
+  opts = {},
+}
+```
+
+`defer = true` delays the hint engine until `VimEnter` when `setup()` is called
+earlier, including calls caused by another plugin's metadata registration.
+Triggers are ready before the first input. The default is `false` for synchronous
+setup. Explicit `show()`, `pick()`, and `refresh()` activate pending setup
+synchronously; reconfiguring an active engine is synchronous as well.
+`register()` loads only metadata storage and key normalization. `list()` does not
+initialize hints or rendering, and the hint window module loads on first display.
 
 ## Use
 
@@ -71,6 +84,7 @@ or replaced mapping before execution.
 
 ```lua
 require("keymap_tools").setup({
+  defer = true, -- Defer startup initialization until VimEnter
   hints = {
     enabled = true, -- Automatic hints only; explicit show()/pick() remain usable
     delay = 200,

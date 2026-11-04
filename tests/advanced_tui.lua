@@ -48,6 +48,19 @@ local function line(text)
   end, "line " .. text)
 end
 local function check()
+  local hints = require("keymap_tools.hints")
+  local refresh, idle_calls = hints.refresh, 0
+  hints.refresh = function(...)
+    idle_calls = idle_calls + 1
+    return refresh(...)
+  end
+  local idle_until = vim.uv.hrtime() + 150 * 1000000
+  wait_for(function()
+    return vim.uv.hrtime() >= idle_until
+  end, "idle without a self-scheduling refresh loop")
+  hints.refresh = refresh
+  assert(idle_calls < 24, "SafeState refreshes kept the idle event loop busy: " .. idle_calls)
+
   local burst = 0
   vim.keymap.set("n", "<leader>sx", function()
     burst = burst + 1

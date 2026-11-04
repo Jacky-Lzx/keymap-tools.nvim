@@ -4,6 +4,7 @@ for _, prefix in ipairs({ "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w
   triggers[#triggers + 1] = { prefix = prefix, modes = { "n", "x", "o" } }
 end
 local defaults = {
+  defer = false,
   hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
   picker = {},
@@ -22,6 +23,7 @@ function M.normalize(opts)
     assert(defaults[key] ~= nil, "keymap-tools: unknown setup field: " .. tostring(key))
   end
   local result = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
+  assert(type(result.defer) == "boolean", "keymap-tools: defer must be boolean")
   if opts.hints and opts.hints.triggers ~= nil then
     result.hints.triggers = vim.deepcopy(opts.hints.triggers)
   end

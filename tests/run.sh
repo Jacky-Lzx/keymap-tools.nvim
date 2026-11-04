@@ -13,6 +13,10 @@ export NVIM_LOG_FILE="$test_root/nvim.log" PYTHONDONTWRITEBYTECODE=1
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/performance.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/refresh.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/triggers.lua
+for test in lazy lazy_explicit; do
+  "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin \
+    -c "lua local ok, err = pcall(dofile, 'tests/$test.lua'); if not ok then print(err); vim.cmd('cquit 1') end" +qa!
+done
 python3 tests/tui.py
 python3 tests/advanced_tui.py
 stylua --check lua plugin tests

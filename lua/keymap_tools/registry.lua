@@ -1,5 +1,4 @@
 local keys = require("keymap_tools.keys")
-local context = require("keymap_tools.context")
 local M = { revision = 0 }
 local records, serial, listener, scheduled = {}, 0, nil, false
 local Handle = {}
@@ -142,6 +141,7 @@ function M.register(source, spec)
 end
 
 function M.resolve(ctx, scope, errors, projection)
+  local context = require("keymap_tools.context")
   local matching = {}
   for _, handle in pairs(records) do
     local data = handle.data
