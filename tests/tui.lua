@@ -107,7 +107,7 @@ timer:start(
           visible = visible .. screen(pos[1] + row + 1, pos[2] + 1, cfg.width)
         end
         assert(visible:find("Search actions", 1, true), "group missing from terminal")
-        assert(visible:find("␣  Space action", 1, true), "Space glyph missing from terminal")
+        assert(visible:find("␣ Space action", 1, true), "Space glyph missing from terminal")
         assert(screen(pos[1], pos[2] + 1, cfg.width):find("n · ␣", 1, true), "Space glyph missing from title")
         mark("subgroup")
         stage = "nested"

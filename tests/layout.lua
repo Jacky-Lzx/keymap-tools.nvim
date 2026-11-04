@@ -16,10 +16,10 @@ local children = {
 }
 view.show(children, "", "n", options)
 local lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
-assert(#lines == 3 and lines[1]:find(" a  ", 1, true) == 1 and lines[2]:find(" b  ", 1, true) == 1)
-local right = assert(lines[1]:find(" d  ", 1, true), "right column is missing")
+assert(#lines == 3 and lines[1]:find(" a 中文", 1, true) == 1 and lines[2]:find(" b Second", 1, true) == 1)
+local right = assert(lines[1]:find(" d Right", 1, true), "right column is missing")
 assert(vim.fn.strdisplaywidth(lines[1]:sub(1, right - 1)) == 41, "wide/combining text shifted the right column")
-assert(lines[2]:find(" e  ", 1, true), "columns should fill from top to bottom")
+assert(lines[2]:find(" e Long", 1, true), "columns should fill from top to bottom")
 assert(not lines[3]:find("Long", 1, true), "odd final item duplicated into an empty cell")
 for _, line in ipairs(lines) do
   assert(vim.fn.strdisplaywidth(line) <= 80)
@@ -28,7 +28,7 @@ local spans =
   api.nvim_buf_get_extmarks(view.buf, api.nvim_create_namespace("keymap_tools.view"), 0, -1, { details = true })
 local highlighted = false
 for _, span in ipairs(spans) do
-  if span[2] == 0 and span[3] == right - 1 + 4 and span[4].hl_group == "KeymapToolsGroup" then
+  if span[2] == 0 and span[3] == right - 1 + 3 and span[4].hl_group == "KeymapToolsGroup" then
     highlighted = true
   end
 end
@@ -44,7 +44,7 @@ for page = 1, 4 do
   lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
   for row = 1, #lines - 1 do
     for _, cell in ipairs({ lines[row]:sub(1, 38), lines[row]:sub(42) }) do
-      local key = cell:match("^ (.)  ")
+      local key = cell:match("^ (.) ")
       if key then
         assert(not seen[key], "paging duplicated " .. key)
         seen[key] = true
@@ -73,7 +73,7 @@ assert(api.nvim_win_get_height(view.win) == 1 and view.frame.page == 2)
 view.hide()
 view.show({ { key = " ", desc = "Space action" }, { key = "a", desc = "Letter action" } }, " g", "n", options)
 lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
-assert(lines[1]:find(" ␣  Space action", 1, true) == 1, "Space should use a compact visible glyph")
+assert(lines[1]:find(" ␣ Space action", 1, true) == 1, "Space should use a compact visible glyph")
 assert(api.nvim_win_get_config(view.win).title[1][1] == " n · ␣g ", "prefix should use the same Space glyph")
 assert(require("keymap_tools.keys").label(" ") == "<Space>", "canonical key notation must remain replayable")
 view.hide()

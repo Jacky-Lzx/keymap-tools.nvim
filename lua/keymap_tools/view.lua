@@ -79,7 +79,7 @@ function M.show(children, prefix, mode, config)
       local cell, left = "", ""
       if child then
         local label = clip(key_label(child.key), key_width)
-        left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. "  "
+        left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. " "
         cell = clip(left .. child.desc, column_width)
         local key_end = math.min(#cell, #left)
         spans[#spans + 1] = { row = row - 1, start = #line, finish = #line + key_end, hl = "KeymapToolsKey" }
