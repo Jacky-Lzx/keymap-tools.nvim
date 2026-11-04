@@ -43,7 +43,11 @@ local function modes(value)
 end
 
 local function normalize(spec, fixed_buf)
-  fields(spec, { buf = true, modes = true, priority = true, groups = true, hints = true, when = true }, "registration")
+  fields(
+    spec,
+    { buf = true, modes = true, priority = true, groups = true, hints = true, toggles = true, when = true },
+    "registration"
+  )
   local buf = spec.buf
   if buf == 0 then
     buf = vim.api.nvim_get_current_buf()
@@ -59,23 +63,30 @@ local function normalize(spec, fixed_buf)
   local priority = spec.priority or 0
   assert(type(priority) == "number", "keymap-tools: priority must be a number")
   local default_modes, entries = modes(spec.modes), {}
-  for _, kind in ipairs({ "groups", "hints" }) do
+  for _, kind in ipairs({ "groups", "hints", "toggles" }) do
     local list = spec[kind] or {}
     assert(vim.islist(list), "keymap-tools: " .. kind .. " must be a list")
     for _, item in ipairs(list) do
       local group = kind == "groups"
+      local toggle = kind == "toggles"
       fields(
         item,
         group and { prefix = true, label = true, modes = true, when = true, hidden = true }
+          or toggle and { keys = true, name = true, get = true, modes = true, when = true, hidden = true }
           or { keys = true, desc = true, modes = true, when = true, hidden = true },
         kind .. " entry"
       )
-      local lhs, text = group and item.prefix or item.keys, group and item.label or item.desc
+      local lhs = group and item.prefix or item.keys
+      local text = group and item.label or toggle and item.name or item.desc
       assert(
         type(lhs) == "string" and #lhs > 0,
         "keymap-tools: entry requires nonempty " .. (group and "prefix" or "keys")
       )
-      assert(type(text) == "string" or type(text) == "function", "keymap-tools: entry requires a label/description")
+      assert(
+        type(text) == "string" or type(text) == "function",
+        "keymap-tools: entry requires a " .. (toggle and "name" or "label/description")
+      )
+      assert(not toggle or type(item.get) == "function", "keymap-tools: toggle requires a get function")
       for _, field in ipairs({ "when", "hidden" }) do
         assert(
           item[field] == nil or type(item[field]) == "boolean" or type(item[field]) == "function",
@@ -87,6 +98,7 @@ local function normalize(spec, fixed_buf)
           kind = group and "group" or "hint",
           raw = keys.raw(lhs),
           text = text,
+          get = toggle and item.get or nil,
           mode = mode,
           when = item.when,
           hidden = item.hidden,
@@ -140,6 +152,25 @@ function M.register(source, spec)
   return handle
 end
 
+local function describe(entry, ctx, errors, source, projection)
+  local context = require("keymap_tools.context")
+  local field = entry.get and "name" or entry.kind == "group" and "label" or "desc"
+  local text = context.evaluate(entry.text, ctx, errors, source, field)
+  if type(text) ~= "string" or not entry.get or projection then
+    return text
+  end
+  local state = context.evaluate(entry.get, ctx, errors, source, "get")
+  if state ~= nil and type(state) ~= "boolean" then
+    errors[#errors + 1] = { source = source, field = "get", message = "toggle get must return a boolean or nil" }
+    state = nil
+  end
+  local action = "Toggle "
+  if state ~= nil then
+    action = state and "Disable " or "Enable "
+  end
+  return action .. text, { name = text, state = state }
+end
+
 function M.resolve(ctx, scope, errors, projection)
   local context = require("keymap_tools.context")
   local matching = {}
@@ -175,13 +206,13 @@ function M.resolve(ctx, scope, errors, projection)
       then
         local enabled, valid = context.evaluate(entry.when, ctx, errors, handle.source, "when")
         if valid and enabled ~= false then
-          local text =
-            context.evaluate(entry.text, ctx, errors, handle.source, entry.kind == "group" and "label" or "desc")
+          local text, toggle = describe(entry, ctx, errors, handle.source, projection)
           if type(text) == "string" then
             result[entry.kind][entry.raw] = {
               keys = entry.raw,
               kind = entry.kind,
               desc = text,
+              toggle = toggle,
               source = handle.source,
               scope = handle.data.buf and "buffer" or "global",
               buf = handle.data.buf,

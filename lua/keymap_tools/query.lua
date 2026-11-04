@@ -64,6 +64,7 @@ function M.collect(opts, config)
     local item = merged[raw]
     if item then
       item.desc, item.hidden, item.metadata_source = entry.desc, entry.hidden, entry.source
+      item.toggle = entry.toggle
     else
       entry.virtual, entry.map = true, {}
       merged[raw] = entry
@@ -148,6 +149,7 @@ function M.list(opts)
       buf = item.scope == "buffer" and item.buf or nil,
       mode = info.context.mode,
       desc = item.desc,
+      toggle = item.toggle and vim.deepcopy(item.toggle) or nil,
       hidden = item.hidden == true,
       executable = item.kind == "mapping",
     }

@@ -5,6 +5,8 @@ selection-tools.nvim. Includes operator-pending motions/textobjects, register an
 mark previews, spelling suggestions, dynamic descriptions, and list scrolling.
 Hints use two columns by default, filling top to bottom and then left to right.
 Narrow windows automatically fall back to one column.
+Read-only toggle registrations supply live descriptions and structured state;
+feature owners keep their mappings and switching logic.
 
 Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
 
@@ -192,6 +194,88 @@ A hint matching a real mapping decorates that mapping. A metadata-only hint
 creates no executable action; it can describe input read by mini.ai or another
 existing key reader. Empty groups are omitted from the resolved display model.
 
+## Register toggles
+
+Use `toggles` to describe an existing feature switch. Each entry requires `keys`,
+`name` (a string or context callback), and `get(ctx)` returning `true`, `false`,
+or `nil` when the state is unknown. For example, alongside a window-wrap mapping:
+
+```lua
+vim.keymap.set("n", "<leader>tw", function()
+  vim.wo.wrap = not vim.wo.wrap
+end, { desc = "Toggle wrap" }) -- Owned by the window feature
+
+require("keymap_tools").register("window.wrap", {
+  toggles = {
+    {
+      keys = "<leader>tw",
+      name = "Wrap",
+      get = function(ctx)
+        if ctx.win then
+          return vim.api.nvim_get_option_value("wrap", { win = ctx.win })
+        end
+      end,
+    },
+  },
+})
+```
+
+Hints, the picker and `list()` share the description: `Enable Wrap` for `false`,
+`Disable Wrap` for `true`, and `Toggle Wrap` for unknown state. Rows also expose
+`toggle = { name = "Wrap", state = false }`; unknown state has no `state` value.
+A toggle without a real mapping remains a non-executable `hint`. With a mapping,
+it remains a `mapping` and the picker replays the owner's original keys. Even if
+state changes while the picker is open, execution uses the owner's current logic.
+
+`get` is read-only: registration never calls it, installs no mapping, and accepts
+no setter. State is read afresh when querying/opening, without polling, caching,
+or initializing a feature. Trigger discovery does not call `get`. A getter error
+or non-boolean/non-nil result produces unknown state and an `info.errors` entry with
+`field = "get"`. Return `nil` for an expected unavailable state to avoid an error.
+An open display is a snapshot; reopen it to read changed state.
+
+Toggles use the same `modes`, `when`, `hidden`, buffer scope, priority and
+registration handles as hints. They compete with hints for the same metadata
+slot, so an ordinary hint override removes the toggle state too. Within a single
+registration, toggles take precedence over hints at the same key/mode.
+
+For configuration migrations, register next to each feature's existing mapping:
+
+```lua
+require("keymap_tools").register("formatting", {
+  toggles = {
+    { keys = "<leader>tf", name = "Auto format", get = function()
+      return vim.g.enable_autoformat -- Same session flag the formatter reads
+    end },
+  },
+})
+
+require("keymap_tools").register("diagnostics", {
+  toggles = {
+    { keys = "<leader>td", name = "Diagnostics", get = function()
+      return vim.diagnostic.is_enabled()
+    end },
+    { keys = "<leader>th", name = "Inlay Hints", get = function()
+      return vim.lsp.inlay_hint.is_enabled() -- Session-wide state
+    end },
+  },
+})
+```
+
+Window options such as spell, relative numbers and conceal can read their values
+through `ctx.win`; buffer features should use `ctx.buf`. Compare non-boolean
+options explicitly, e.g. `conceallevel > 0` or `vim.o.background == "dark"`.
+For lazy features, register after the owner loads or inspect `package.loaded`
+and return `nil` until available. Do not require a lazy feature just to read its
+status. Animation, scrolling, Markdown rendering, Git and UI switches should
+read their owner's public state rather than mirror it in keymap-tools.
+
+Existing Snacks switches can keep owning their mappings while an integration
+registers `name = toggle.opts.name` and a context-aware getter calling
+`toggle:get()`. For getters that use implicit current-window state, guard
+`ctx.win` and call them with `vim.api.nvim_win_call(ctx.win, ...)`. There is no
+automatic Snacks hook, configuration scan or built-in feature/key assignment.
+
 ## Query and display
 
 ```lua
@@ -213,7 +297,9 @@ keymaps.refresh()
 `list()` is read-only and returns detached rows with canonical `keys`, `kind`,
 `source`, `metadata_source` (when decorating an actual map), `scope`, `buf`,
 `mode`, `desc`, `hidden`, and `executable`. Only real mappings have
-`executable = true`. Internal keycodes and map dictionaries are not public data.
+`executable = true`. Toggle registrations additionally supply `toggle` with
+`name` and boolean-or-unknown `state`. Internal keycodes and map dictionaries are
+not public data.
 Use `kinds = { "mapping" }` for a mapping-only query; `<Plug>` targets are hidden
 unless `plugs = true`. `include_hidden = true` includes hidden rows.
 
@@ -245,7 +331,8 @@ labels belong to registrations. No compatibility aliases are provided.
 ## Validation
 
 Run `sh tests/run.sh`. Checks include registration conflicts/cleanup, cross-window
-contexts, query diagnostics, actual selection-tools/mini.ai checkouts, and real
-terminal input for operator, provider and picker workflows. Set
+contexts, read-only toggles and unknown states, query diagnostics, actual
+selection-tools/mini.ai checkouts, and real terminal input for operator, provider
+and picker workflows. Set
 `SELECTION_TOOLS_DIR`, `MINI_AI_DIR` or `NVIM_BIN` to override local test paths.
 Python 3, StyLua and the English spelling dictionary are required for the suite.

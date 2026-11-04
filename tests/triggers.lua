@@ -41,6 +41,22 @@ tools.register("projection", {
       hidden = true,
     },
   },
+  toggles = {
+    {
+      keys = "<leader>tw",
+      name = "Wrap",
+      get = function()
+        return false
+      end,
+    },
+    {
+      keys = "g!",
+      name = "Unavailable",
+      get = function()
+        error("owner unavailable")
+      end,
+    },
+  },
 })
 local second = api.nvim_create_buf(false, true)
 tools.register("buffer-exact", { buf = second, hints = { { keys = "g", desc = "Virtual exact" } } })

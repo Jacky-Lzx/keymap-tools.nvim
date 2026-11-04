@@ -18,6 +18,24 @@ local origin = vim.api.nvim_get_current_win()
 local buf = vim.api.nvim_get_current_buf()
 vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "first", "second", "third", "fourth", "fifth" })
 local hits, global_hits, expr_hits, plug_hits, visual_hits = 0, 0, 0, 0, 0
+local toggle_hits = 0
+vim.wo.wrap = false
+vim.keymap.set("n", "<leader>tw", function()
+  assert(vim.api.nvim_get_current_win() == origin, "toggle executed outside the source window")
+  toggle_hits = toggle_hits + 1
+  vim.wo.wrap = not vim.wo.wrap
+end, { desc = "Owner's wrap mapping" })
+tools.register("window.wrap", {
+  toggles = {
+    {
+      keys = "<leader>tw",
+      name = "Wrap",
+      get = function(ctx)
+        return ctx.win and vim.api.nvim_get_option_value("wrap", { win = ctx.win })
+      end,
+    },
+  },
+})
 local count
 local function local_action()
   assert(vim.api.nvim_get_current_win() == origin and vim.api.nvim_get_current_buf() == buf)
@@ -194,13 +212,54 @@ timer:start(
       elseif stage == "done" and picker.closed then
         assert(vim.api.nvim_get_current_win() == origin)
         assert(hits == 2 and global_hits == 0 and expr_hits == 1 and plug_hits == 1 and visual_hits == 1)
+        mark("toggle_hint_off")
+        stage = "toggle_hint_off"
+      elseif stage == "toggle_hint_off" and view.buf then
+        local lines = table.concat(vim.api.nvim_buf_get_lines(view.buf, 0, -1, false), "\n")
+        if lines:find("Enable Wrap", 1, true) then
+          vim.cmd.redraw()
+          local pos = vim.fn.win_screenpos(view.win)
+          assert(screen(pos[1] + 1, pos[2] + 1, vim.api.nvim_win_get_width(view.win)):find("Enable Wrap", 1, true))
+          assert(toggle_hits == 0 and not vim.wo[origin].wrap, "hint changed owner state")
+          mark("toggle_on")
+          stage = "toggle_on"
+        end
+      elseif stage == "toggle_on" and toggle_hits == 1 then
+        assert(vim.wo[origin].wrap)
+        mark("toggle_hint_on")
+        stage = "toggle_hint_on"
+      elseif stage == "toggle_hint_on" and view.buf then
+        local lines = table.concat(vim.api.nvim_buf_get_lines(view.buf, 0, -1, false), "\n")
+        if lines:find("Disable Wrap", 1, true) then
+          vim.cmd.redraw()
+          local pos = vim.fn.win_screenpos(view.win)
+          assert(screen(pos[1] + 1, pos[2] + 1, vim.api.nvim_win_get_width(view.win)):find("Disable Wrap", 1, true))
+          mark("toggle_escape")
+          stage = "toggle_cancelled"
+        end
+      elseif stage == "toggle_cancelled" and not view.win then
+        mark("toggle_pick")
+        stage = "toggle_pick"
+      elseif stage == "toggle_pick" then
+        choose("filter_toggle", "toggle_filtered")
+      elseif stage == "toggle_filtered" and picker.query == "Disable Wrap" and #picker.matches == 1 then
+        local item = picker.matches[1].item
+        assert(item.toggle.name == "Wrap" and item.toggle.state == true)
+        assert(picker.matches[1].text:find("Disable Wrap", 1, true), "picker lost toggle description")
+        -- An external state change while browsing must not replace the owner's
+        -- action with a setter based on the picker snapshot.
+        vim.wo[origin].wrap = false
+        mark("confirm_toggle")
+        stage = "toggle_executed"
+      elseif stage == "toggle_executed" and toggle_hits == 2 and picker.closed then
+        assert(vim.wo[origin].wrap, "picker did not execute the owner's current-state toggle")
         tools.setup({ hints = { enabled = false } })
         assert(#require("keymap_tools.hints").triggers == 0)
         finished = true
         timer:stop()
         timer:close()
         vim.fn.writefile({
-          "PASS TUI prefix/group/backspace/resize/Escape, rapid input, counts/registers, builtin fallback, real selection-tools search/execute, expression/remap, Visual range and stale rejection",
+          "PASS TUI prefix/group/backspace/resize/Escape, rapid input, counts/registers, builtin fallback, real selection-tools search/execute, expression/remap, Visual range, stale rejection and live toggle hints/picker/owner execution",
         }, directory .. "/result")
         vim.cmd("qa!")
       end

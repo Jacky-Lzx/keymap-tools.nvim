@@ -22,6 +22,9 @@ actions = {
     "filter_local": b"Local action", "filter_expr": b"Expression action",
     "filter_plug": b"Remapped action", "visual": b"vj ?", "filter_visual": b"Visual action",
     "filter_stale": b"Stale action", "cancel_picker": b"\x1b",
+    "toggle_hint_off": b" t", "toggle_on": b"w", "toggle_hint_on": b" t",
+    "toggle_escape": b"\x1b", "toggle_pick": b" ?", "filter_toggle": b"Disable Wrap",
+    "confirm_toggle": b"\r",
     **{f"confirm_{name}": b"\r" for name in ("local", "expr", "plug", "visual", "stale")},
 }
 with tempfile.TemporaryDirectory(prefix="keymap-tools-", dir="/private/tmp" if Path("/private/tmp").exists() else None) as directory:

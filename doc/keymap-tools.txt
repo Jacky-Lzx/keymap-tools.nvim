@@ -87,6 +87,40 @@ Use ctx rather than implicit current-window state. Callback contexts and query
 rows are detached copies. Values are evaluated on query/open; callback failures
 are returned in query diagnostics. Group hidden=true also hides descendants.
 
+TOGGLES                                                 *keymap-tools-toggles*
+>
+  require("keymap_tools").register("window.wrap", {
+    toggles = {
+      { keys = "<leader>tw", name = "Wrap", get = function(ctx)
+        if ctx.win then
+          return vim.api.nvim_get_option_value("wrap", { win = ctx.win })
+        end
+      end },
+    },
+  })
+<
+Each toggle requires keys, name (string or context callback), and get(ctx).
+get returns true (enabled), false (disabled), or nil (unknown/unavailable).
+The shared description is Disable <name>, Enable <name>, or Toggle <name>.
+Rows expose toggle={name=...,state=...}; unknown state has no state value.
+A toggle uses kind="hint", or decorates kind="mapping" if a real map exists.
+Only actual mappings are executable; the picker replays the owner's keys.
+
+The feature owns its state, mapping and switching logic. There is no setter,
+mapping installation, state cache, polling, or automatic feature integration.
+Registration and trigger discovery never call get. Queries/opening read fresh
+state; open displays are snapshots. Reopen to see subsequent external changes.
+Getter errors or non-boolean/non-nil results show unknown state and add a get
+diagnostic to info.errors. Return nil for an expected unavailable state.
+
+Toggles support modes/when/hidden and all registration scopes, priorities and
+handles. Hints/toggles compete for one metadata slot; an ordinary hint override
+removes toggle state. Within one registration, toggles win over hints.
+Use ctx.buf/ctx.win for local state. For legacy implicit-window getters, guard
+ctx.win and use nvim_win_call. Avoid loading lazy features from status getters;
+use package.loaded or register after the owner loads. Session settings such as
+inlay hints should read the session-wide owner state. See README for examples.
+
 QUERY AND DISPLAY                                       *keymap-tools-api*
 >
   local tools = require("keymap_tools")
@@ -101,9 +135,11 @@ QUERY AND DISPLAY                                       *keymap-tools-api*
 <
 list() does not initialize UI. Rows have keys (canonical notation), kind, source,
 metadata_source, scope, buf, mode, desc, hidden and executable. Only actual
-mapping rows are executable. Empty groups are omitted. Plug targets require
-plugs=true; hidden rows require include_hidden=true. info contains context and
-errors (source/field/message). Internal keycodes/map dictionaries stay private.
+mapping rows are executable. Toggles additionally expose toggle.name and
+toggle.state (boolean, or absent for unknown). Empty groups are omitted.
+Plug targets require plugs=true; hidden rows require include_hidden=true.
+info contains context and errors (source/field/message). Internal keycodes/map
+dictionaries stay private.
 
 Query scopes: effective resolves local overrides; global reads global data,
 including shadowed global maps; buffer reads only buffer data. Actual mappings
