@@ -41,6 +41,7 @@ vim.keymap.set("n", "<leader>sj", function()
 end, { desc = "Count action" })
 vim.keymap.set("n", "<leader>sy", "yy", { desc = "Register action" })
 vim.keymap.set("n", "gq", "<Nop>", { desc = "Custom g prefix" })
+vim.keymap.set("n", "<leader><Space>", "<Nop>", { desc = "Space action" })
 vim.keymap.set("x", "<leader>sv", function()
   assert(vim.api.nvim_get_current_win() == origin)
   assert(require("keymap_tools.keys").mode() == "x", "Visual mapping lost selection")
@@ -106,6 +107,8 @@ timer:start(
           visible = visible .. screen(pos[1] + row + 1, pos[2] + 1, cfg.width)
         end
         assert(visible:find("Search actions", 1, true), "group missing from terminal")
+        assert(visible:find("␣  Space action", 1, true), "Space glyph missing from terminal")
+        assert(screen(pos[1], pos[2] + 1, cfg.width):find("n · ␣", 1, true), "Space glyph missing from title")
         mark("subgroup")
         stage = "nested"
       elseif stage == "nested" and view.buf then

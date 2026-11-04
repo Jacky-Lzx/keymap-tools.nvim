@@ -71,6 +71,12 @@ assert(view.frame.columns == 1)
 view.show(many, "tiny", "n", vim.tbl_extend("force", options, { height = 1 }))
 assert(api.nvim_win_get_height(view.win) == 1 and view.frame.page == 2)
 view.hide()
+view.show({ { key = " ", desc = "Space action" }, { key = "a", desc = "Letter action" } }, " g", "n", options)
+lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
+assert(lines[1]:find(" ␣  Space action", 1, true) == 1, "Space should use a compact visible glyph")
+assert(api.nvim_win_get_config(view.win).title[1][1] == " n · ␣g ", "prefix should use the same Space glyph")
+assert(require("keymap_tools.keys").label(" ") == "<Space>", "canonical key notation must remain replayable")
+view.hide()
 assert(not pcall(config.normalize, { window = { columns = 3 } }))
 print(
   "PASS two-column ordering, Unicode alignment/highlights, complete paging, narrow fallback and single-column override"

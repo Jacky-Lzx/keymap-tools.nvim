@@ -2,6 +2,10 @@ local keys = require("keymap_tools.keys")
 local M = {}
 local ns = vim.api.nvim_create_namespace("keymap_tools.view")
 
+local function key_label(raw)
+  return (keys.label(raw):gsub("<Space>", "␣"))
+end
+
 local function clip(text, width)
   local result = ""
   for _, char in ipairs(vim.fn.split(text, "\\zs")) do
@@ -64,7 +68,7 @@ function M.show(children, prefix, mode, config)
   }
   local key_width = 1
   for _, child in ipairs(children) do
-    key_width = math.max(key_width, vim.fn.strdisplaywidth(keys.label(child.key)))
+    key_width = math.max(key_width, vim.fn.strdisplaywidth(key_label(child.key)))
   end
   key_width = math.min(key_width, math.max(1, math.floor(column_width / 3)))
   local lines, spans = {}, {}
@@ -74,7 +78,7 @@ function M.show(children, prefix, mode, config)
       local child = children[M.offset + (column - 1) * rows + row]
       local cell, left = "", ""
       if child then
-        local label = clip(keys.label(child.key), key_width)
+        local label = clip(key_label(child.key), key_width)
         left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. "  "
         cell = clip(left .. child.desc, column_width)
         local key_end = math.min(#cell, #left)
@@ -121,7 +125,7 @@ function M.show(children, prefix, mode, config)
     zindex = 60,
   }
   if width >= 16 and config.border ~= "none" and config.border ~= "" then
-    win_config.title = clip(" " .. mode .. " · " .. (prefix == "" and "Keymaps" or keys.label(prefix)) .. " ", width)
+    win_config.title = clip(" " .. mode .. " · " .. (prefix == "" and "Keymaps" or key_label(prefix)) .. " ", width)
     win_config.title_pos = "right"
   end
   if M.win and vim.api.nvim_win_is_valid(M.win) then
