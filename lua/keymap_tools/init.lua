@@ -18,6 +18,10 @@ function M.setup(opts)
   local config = require("keymap_tools.config")
   local value = config.normalize(opts)
   config.set(value)
+  local showkeys = package.loaded["keymap_tools.showkeys"]
+  if showkeys or value.showkeys.enabled then
+    require("keymap_tools.showkeys").setup(value.showkeys)
+  end
   if startup then
     vim.api.nvim_del_autocmd(startup)
     startup = nil
@@ -73,6 +77,18 @@ end
 function M.refresh()
   ensure_setup()
   require("keymap_tools.hints").refresh()
+end
+
+-- These actions do not activate deferred hints or load picker dependencies.
+M.showkeys = {}
+for _, action in ipairs({ "enable", "disable", "toggle", "is_enabled" }) do
+  M.showkeys[action] = function()
+    if action == "is_enabled" or action == "disable" then
+      local showkeys = package.loaded["keymap_tools.showkeys"]
+      return showkeys and showkeys[action]() or false
+    end
+    return require("keymap_tools.showkeys")[action]()
+  end
 end
 
 return M

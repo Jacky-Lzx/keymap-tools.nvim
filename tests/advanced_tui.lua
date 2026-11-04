@@ -7,7 +7,7 @@ local tools = require("keymap_tools")
 local view = require("keymap_tools.view")
 local keys = require("keymap_tools.keys")
 local directory = assert(vim.env.KEYMAP_TOOLS_TEST_DIR)
-tools.setup({ hints = { delay = 40 }, window = { height = 32 } })
+tools.setup({ hints = { delay = 40 }, window = { height = 32 }, showkeys = { enabled = true, timeout = 0.2 } })
 local serial = 0
 local current_step = "startup"
 local function wait_for(fn, label)

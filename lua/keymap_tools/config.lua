@@ -8,6 +8,31 @@ local defaults = {
   hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
   picker = {},
+  showkeys = {
+    enabled = false,
+    timeout = 3, -- Seconds, matching showkeys.
+    maxkeys = 5,
+    show_count = false,
+    excluded_modes = {},
+    position = "bottom-right",
+    keyformat = {
+      ["<BS>"] = "⌫",
+      ["<CR>"] = "↵",
+      ["<Space>"] = "␣",
+      ["<Up>"] = "↑",
+      ["<Down>"] = "↓",
+      ["<Left>"] = "←",
+      ["<Right>"] = "→",
+      ["<PageUp>"] = "Page ↑",
+      ["<PageDown>"] = "Page ↓",
+      ["<M>"] = "Alt",
+      ["<C>"] = "Ctrl",
+      ["<S>"] = "Shift",
+      ["<D>"] = "Cmd",
+    },
+    winopts = { border = "single", zindex = 60 },
+    winhl = "Normal:NormalFloat,FloatBorder:FloatBorder",
+  },
   presets = true,
   providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
 }
@@ -23,6 +48,62 @@ function M.normalize(opts)
     assert(defaults[key] ~= nil, "keymap-tools: unknown setup field: " .. tostring(key))
   end
   local result = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
+  if opts.showkeys and opts.showkeys.excluded_modes ~= nil then
+    result.showkeys.excluded_modes = vim.deepcopy(opts.showkeys.excluded_modes)
+  end
+  local showkeys = result.showkeys
+  assert(type(showkeys) == "table", "keymap-tools: showkeys must be a table")
+  for field in pairs(showkeys) do
+    assert(defaults.showkeys[field] ~= nil, "keymap-tools: unknown showkeys field: " .. tostring(field))
+  end
+  assert(type(showkeys.enabled) == "boolean", "keymap-tools: showkeys.enabled must be boolean")
+  assert(type(showkeys.show_count) == "boolean", "keymap-tools: showkeys.show_count must be boolean")
+  assert(
+    type(showkeys.timeout) == "number" and showkeys.timeout > 0 and showkeys.timeout < math.huge,
+    "keymap-tools: showkeys.timeout must be positive seconds"
+  )
+  assert(
+    type(showkeys.maxkeys) == "number"
+      and showkeys.maxkeys >= 1
+      and showkeys.maxkeys == math.floor(showkeys.maxkeys)
+      and showkeys.maxkeys < math.huge,
+    "keymap-tools: showkeys.maxkeys must be a positive integer"
+  )
+  assert(
+    vim.tbl_contains(
+      { "top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right" },
+      showkeys.position
+    ),
+    "keymap-tools: invalid showkeys.position"
+  )
+  assert(vim.islist(showkeys.excluded_modes), "keymap-tools: showkeys.excluded_modes must be a list")
+  for _, mode in ipairs(showkeys.excluded_modes) do
+    assert(type(mode) == "string" and #mode > 0, "keymap-tools: excluded modes must be nonempty strings")
+  end
+  assert(type(showkeys.keyformat) == "table", "keymap-tools: showkeys.keyformat must be a table")
+  for key, label in pairs(showkeys.keyformat) do
+    assert(
+      type(key) == "string" and type(label) == "string" and not label:find("[%c]"),
+      "keymap-tools: invalid keyformat"
+    )
+  end
+  assert(type(showkeys.winhl) == "string", "keymap-tools: showkeys.winhl must be a string")
+  assert(type(showkeys.winopts) == "table", "keymap-tools: showkeys.winopts must be a table")
+  for field in pairs(showkeys.winopts) do
+    assert(field == "border" or field == "zindex", "keymap-tools: showkeys.winopts accepts border and zindex")
+  end
+  assert(
+    type(showkeys.winopts.zindex) == "number"
+      and showkeys.winopts.zindex >= 1
+      and showkeys.winopts.zindex == math.floor(showkeys.winopts.zindex)
+      and showkeys.winopts.zindex < math.huge,
+    "keymap-tools: showkeys zindex must be a positive integer"
+  )
+  assert(
+    type(showkeys.winopts.border) == "table"
+      or vim.tbl_contains({ "none", "", "single", "double", "rounded", "solid", "shadow" }, showkeys.winopts.border),
+    "keymap-tools: invalid showkeys border"
+  )
   assert(type(result.defer) == "boolean", "keymap-tools: defer must be boolean")
   if opts.hints and opts.hints.triggers ~= nil then
     result.hints.triggers = vim.deepcopy(opts.hints.triggers)

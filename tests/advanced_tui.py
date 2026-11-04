@@ -9,6 +9,7 @@ import select
 import shutil
 import struct
 import subprocess
+import sys
 import tempfile
 import termios
 import time
@@ -20,7 +21,7 @@ with tempfile.TemporaryDirectory(prefix="keymap-advanced-", dir="/tmp") as direc
     env = dict(os.environ, TERM="xterm-256color", KEYMAP_TOOLS_TEST_DIR=directory,
                NVIM_LOG_FILE=directory + "/nvim.log")
     process = subprocess.Popen([os.environ.get("NVIM_BIN") or shutil.which("nvim"), "-u", "NONE", "-n", "-i", "NONE",
-                                "-c", "lua dofile('tests/advanced_tui.lua')"], cwd=root, env=env,
+                                "-c", "lua dofile(" + repr(sys.argv[1] if len(sys.argv) > 1 else "tests/advanced_tui.lua") + ")"], cwd=root, env=env,
                                stdin=slave, stdout=slave, stderr=slave)
     os.close(slave)
     output, last_stage = bytearray(), ""

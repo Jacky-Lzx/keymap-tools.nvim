@@ -143,6 +143,10 @@ function M.replay(raw, count, register)
   if register and register ~= '"' then
     prefix = '"' .. register .. prefix
   end
+  local showkeys = package.loaded["keymap_tools.showkeys"]
+  if showkeys then
+    showkeys.ignore_replay(prefix .. raw)
+  end
   api.nvim_feedkeys(prefix .. raw, "mit", false)
 end
 

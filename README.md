@@ -7,6 +7,8 @@ Hints use two columns by default, filling top to bottom and then left to right.
 Narrow windows automatically fall back to one column.
 Read-only toggle registrations supply live descriptions and structured state;
 feature owners keep their mappings and switching logic.
+An optional built-in key screencast displays recently typed keys for recordings
+and demonstrations, without requiring showkeys.
 
 Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
 
@@ -75,6 +77,7 @@ initialize hints or rendering, and the hint window module loads on first display
   cancels. An actual candidate using a scrolling key takes precedence.
 - `:KeymapTools` / `:KeymapTools pick` opens the executable mapping picker;
   `show`, `hide`, and `refresh` are also available as command arguments.
+- `:KeymapTools showkeys` toggles the recent-key screencast (off by default).
 
 Existing exact user mappings are preserved. Unknown combinations replay normally.
 Macros and rapid operator input retain Neovim's ordinary input path. Mapping
@@ -103,6 +106,7 @@ require("keymap_tools").setup({
   },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
   picker = {}, -- selection-tools options, e.g. layout = { width = 0.7 }
+  showkeys = { enabled = false }, -- Optional recent-key screencast; see below
   presets = true,
   providers = {
     registers = true, -- Or { clipboard = true } to read clipboard previews
@@ -127,6 +131,75 @@ of candidates, including a partially filled final page. Space is displayed as `‚
 Bordered hints show scrolling keys at the bottom left and the candidate range at
 the bottom right, leaving all content rows available. Very narrow borders keep
 the range; borderless hints use a content footer.
+
+## Recent-key screencast
+
+The built-in screencast covers the functionality of
+[nvzone/showkeys](https://github.com/nvzone/showkeys): recent-key history, automatic
+timeout, repeated-key counts, mode exclusions, six screen positions, custom key
+labels, and active/inactive highlighting. It has no external dependency and
+does not create a shortcut. Enable it on demand:
+
+```vim
+:KeymapTools showkeys
+:KeymapTools showkeys enable
+:KeymapTools showkeys disable
+```
+
+Lua actions are separate from the interactive hint `show()` / `hide()` API:
+
+```lua
+local tools = require("keymap_tools")
+vim.keymap.set("n", "<leader>uk", tools.showkeys.toggle,
+  { desc = "Toggle key screencast" })
+tools.showkeys.enable()
+tools.showkeys.disable()
+print(tools.showkeys.is_enabled()) -- Listener state, including while hidden
+```
+
+To configure it, include `showkeys` in the plugin's existing `setup()` call:
+
+```lua
+require("keymap_tools").setup({
+  showkeys = {
+    enabled = false, -- true starts listening during setup, even with defer=true
+    timeout = 3, -- Inactivity timeout in seconds, not milliseconds
+    maxkeys = 5, -- Maximum number of recent entries
+    show_count = false, -- Consecutive identical keys become e.g. "3 j"
+    excluded_modes = {}, -- e.g. { "i", "c", "t" }
+    position = "bottom-right",
+    keyformat = { ["<Space>"] = "‚ê£", ["<C>"] = "Ctrl", ["<M>"] = "Alt" },
+    winopts = { border = "single", zindex = 60 },
+    winhl = "Normal:NormalFloat,FloatBorder:FloatBorder",
+  },
+})
+```
+
+Positions are `top-left`, `top-center`, `top-right`, `bottom-left`,
+`bottom-center`, and `bottom-right`. The float preserves editor focus and moves
+above an overlapping hint window. Narrow screens retain the newest entries.
+The window hides after inactivity; listening continues until disabled. Tab
+changes clear history. Re-running `setup()` resets history and applies
+`showkeys.enabled` afresh. Disabled setup and state queries do not load the module;
+enabling it does not activate deferred hints or load the picker.
+
+Labels use `keytrans()` notation, such as `<CR>` and `<F2>`. `keyformat` merges
+with the built-in Unicode labels; an empty label hides that key. Modifier labels
+use `<C>`, `<M>`, `<S>`, and `<D>`. Complete chord labels take precedence over
+modifier formatting. Mode exclusions replace the whole list, matching either
+the exact Neovim mode or a one-letter prefix (e.g. `i` also excludes `ic`).
+Mouse/scroll/drag/release events and mapping-generated keys are ignored. Hints'
+own typed-key replay is excluded so it does not duplicate the displayed history.
+
+Highlights are `KeymapToolsShowkeysActive` (default `PmenuSel`) and
+`KeymapToolsShowkeysInactive` (default `Visual`); custom definitions survive setup
+and are restored as defaults after a colorscheme change.
+
+For migration, move the previous showkeys options into `setup().showkeys` and
+replace `:ShowkeysToggle` with `:KeymapTools showkeys`, then remove the old plugin
+spec. The integrated `winopts` accepts `border` and `zindex`; dimensions,
+position, and focus are managed automatically. Defaults use five history entries
+and standard Unicode symbols that do not require a Nerd Font.
 
 ## Register metadata
 
@@ -333,6 +406,7 @@ labels belong to registrations. No compatibility aliases are provided.
 Run `sh tests/run.sh`. Checks include registration conflicts/cleanup, cross-window
 contexts, read-only toggles and unknown states, query diagnostics, actual
 selection-tools/mini.ai checkouts, and real terminal input for operator, provider
-and picker workflows. Set
+and picker workflows, plus screencast rendering, input bursts, hint replay,
+timeouts, exclusions and lifecycle cleanup. Set
 `SELECTION_TOOLS_DIR`, `MINI_AI_DIR` or `NVIM_BIN` to override local test paths.
 Python 3, StyLua and the English spelling dictionary are required for the suite.

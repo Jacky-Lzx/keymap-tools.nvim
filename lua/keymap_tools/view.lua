@@ -41,6 +41,10 @@ function M.hide()
   end
   M.win, M.buf = nil, nil
   M.prefix, M.offset, M.frame = nil, 0, nil
+  local showkeys = package.loaded["keymap_tools.showkeys"]
+  if showkeys then
+    showkeys.redraw()
+  end
 end
 
 function M.highlights()
@@ -168,6 +172,10 @@ function M.show(children, prefix, mode, config)
     M.win = vim.api.nvim_open_win(M.buf, false, win_config)
     vim.wo[M.win].winhighlight = "Normal:KeymapToolsNormal,FloatBorder:KeymapToolsBorder"
     vim.wo[M.win].wrap = false
+  end
+  local showkeys = package.loaded["keymap_tools.showkeys"]
+  if showkeys then
+    showkeys.redraw()
   end
   vim.cmd.redraw()
 end

@@ -10,6 +10,7 @@ SETUP                                                   *keymap-tools-setup*
     hints = { enabled = true, delay = 200, operators = true },
     window = { width = 80, height = 16, columns = 2, border = "rounded" },
     picker = {},
+    showkeys = { enabled = false },
     presets = true,
     providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
   })
@@ -57,6 +58,51 @@ COMMAND                                                 *:KeymapTools*
 :KeymapTools show        Open an interactive root hint.
 :KeymapTools hide        Close a hint.
 :KeymapTools refresh     Refresh automatic prefix triggers.
+:KeymapTools showkeys    Toggle the recent-key screencast.
+:KeymapTools showkeys enable / disable / toggle
+                        Explicit screencast listener actions.
+
+KEY SCREENCAST                                          *keymap-tools-showkeys*
+>
+  require("keymap_tools").setup({
+    showkeys = {
+      enabled = false,
+      timeout = 3, -- Seconds of inactivity
+      maxkeys = 5,
+      show_count = false,
+      excluded_modes = {}, -- e.g. { "i", "c", "t" }
+      position = "bottom-right",
+      keyformat = { ["<Space>"] = "␣", ["<C>"] = "Ctrl" },
+      winopts = { border = "single", zindex = 60 },
+      winhl = "Normal:NormalFloat,FloatBorder:FloatBorder",
+    },
+  })
+  local cast = require("keymap_tools").showkeys
+  vim.keymap.set("n", "<leader>uk", cast.toggle, { desc = "Toggle key screencast" })
+  cast.enable()
+  cast.disable()
+  print(cast.is_enabled())
+<
+Built-in alternative to nvzone/showkeys; no dependency or automatic shortcut.
+Default is disabled. enabled=true starts listening during setup, independently
+of defer/hints.enabled. Actions do not activate deferred hints or the picker.
+Timeout closes the window but leaves listening enabled. disable removes the
+listener, timer, window, buffer and autocmds. Setup resets history and reapplies
+enabled; tab changes clear history. The screencast preserves focus, avoids
+overlapping hints, and retains the newest entries on narrow screens.
+
+Positions: top-left/top-center/top-right/bottom-left/bottom-center/bottom-right.
+show_count combines consecutive repeats (e.g. 3 j). maxkeys limits entries.
+excluded_modes replaces the whole list; matches an exact mode or a one-letter
+prefix (i also matches ic). keyformat merges with default Unicode labels, using
+keytrans() notation. Empty labels hide keys. Complete chords take precedence;
+modifier labels use <C>/<M>/<S>/<D>. winopts accepts border and zindex only.
+Mouse events and mapping-generated keys are ignored; hint replay is not counted
+twice. Highlights: KeymapToolsShowkeysActive / KeymapToolsShowkeysInactive.
+
+Migration: move showkeys options into setup().showkeys, replace ShowkeysToggle
+with KeymapTools showkeys and remove the old plugin spec. Default maxkeys is 5;
+labels use standard Unicode rather than Nerd Font glyphs.
 
 REGISTRATION                                            *keymap-tools-register*
 >
@@ -156,6 +202,7 @@ CONFIGURATION                                           *keymap-tools-options*
 hints.enabled/ delay/ operators/ triggers    Automatic hint behavior.
 window.width/ height/ columns/ border       Hint appearance; width is total width.
 picker                                      selection-tools picker options.
+showkeys                                    Optional recent-key screencast.
 presets                                     true/false or individual catalog flags.
 providers                                   registers/marks/spelling options.
 
