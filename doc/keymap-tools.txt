@@ -7,7 +7,7 @@ SETUP                                                   *keymap-tools-setup*
   local tools = require("keymap_tools")
   tools.setup({
     hints = { enabled = true, delay = 200, operators = true },
-    window = { width = 48, height = 16, border = "rounded" },
+    window = { width = 80, height = 16, columns = 2, border = "rounded" },
     picker = {},
     presets = true,
     providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
@@ -28,6 +28,8 @@ Pause after a prefix to see next keys; after d/c/y/gU/g@ for motions/textobjects
 Type i/a to narrow textobjects, BS to go up, Esc/C-c to cancel. C-d/C-u pages long
 lists unless a candidate uses that key. Unknown sequences replay normally.
 Counts, registers, custom operators, native dot-repeat and undo are retained.
+Hints default to two columns, filled top to bottom and then left to right.
+Narrow windows fall back to one column; window.columns=1 forces one column.
 
 " shows registers; C-r shows them in Insert/command-line mode. Clipboard contents
 are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;
@@ -104,7 +106,7 @@ active source window; list() can inspect another window without changing focus.
 CONFIGURATION                                           *keymap-tools-options*
 
 hints.enabled/ delay/ operators/ triggers    Automatic hint behavior.
-window.width/ height/ border                Hint appearance.
+window.width/ height/ columns/ border       Hint appearance; width is total width.
 picker                                      selection-tools picker options.
 presets                                     true/false or individual catalog flags.
 providers                                   registers/marks/spelling options.

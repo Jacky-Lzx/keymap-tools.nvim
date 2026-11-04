@@ -5,7 +5,7 @@ for _, prefix in ipairs({ "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w
 end
 local defaults = {
   hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
-  window = { width = 48, height = 16, border = "rounded" },
+  window = { width = 80, height = 16, columns = 2, border = "rounded" },
   picker = {},
   presets = true,
   providers = { registers = true, marks = true, spelling = { suggestions = 20 } },
@@ -56,6 +56,7 @@ function M.normalize(opts)
       "keymap-tools: window dimensions must be positive integers"
     )
   end
+  assert(result.window.columns == 1 or result.window.columns == 2, "keymap-tools: window.columns must be 1 or 2")
   assert(
     type(result.picker) == "table" and result.picker.key == nil,
     "keymap-tools: bind picker shortcuts with vim.keymap.set()"

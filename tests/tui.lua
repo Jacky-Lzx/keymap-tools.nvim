@@ -99,7 +99,8 @@ timer:start(
         vim.cmd.redraw()
         local pos = vim.fn.win_screenpos(view.win)
         local cfg = vim.api.nvim_win_get_config(view.win)
-        assert(pos[2] > 40 and pos[1] > 8, "hint is not in bottom-right")
+        assert(pos[2] + cfg.width + 1 == vim.o.columns - 1 and pos[1] > 8, "hint is not in bottom-right")
+        assert(view.frame.columns == 2, "default hint should use two columns")
         local visible = ""
         for row = 0, cfg.height - 1 do
           visible = visible .. screen(pos[1] + row + 1, pos[2] + 1, cfg.width)
@@ -119,6 +120,7 @@ timer:start(
           stage = "resized"
         end
       elseif stage == "resized" and vim.o.columns == 32 and view.win and vim.api.nvim_win_get_width(view.win) <= 28 then
+        assert(view.frame.columns == 1, "narrow terminal should use one column")
         mark("escape")
         stage = "cancel_hint"
       elseif stage == "cancel_hint" and not view.win then

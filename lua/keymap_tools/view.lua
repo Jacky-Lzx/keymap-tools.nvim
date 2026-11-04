@@ -37,30 +37,64 @@ function M.show(children, prefix, mode, config)
   end
   local bottom = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0)
   local width = math.max(1, math.min(config.width, vim.o.columns - 4))
-  local height = math.max(1, math.min(#children, config.height, bottom - 3))
-  local page = #children > height and math.max(1, height - 1) or height
+  local gap = 3
+  local columns = config.columns or 2
+  -- Each column needs enough room for a key and a useful description.
+  if columns == 2 and width < 2 * 24 + gap then
+    columns = 1
+  end
+  local column_width = math.floor((width - gap * (columns - 1)) / columns)
+  local height = math.max(1, math.min(math.ceil(#children / columns), config.height, bottom - 3))
+  local footer = #children > height * columns and height > 1
+  local rows = height - (footer and 1 or 0)
+  local page = rows * columns
   M.offset = M.prefix == prefix and (M.offset or 0) or 0
-  M.offset = math.min(M.offset, math.max(0, #children - page))
+  M.offset = math.min(M.offset, math.floor((#children - 1) / page) * page)
   M.prefix = prefix
-  M.frame = { children = children, prefix = prefix, mode = mode, config = config, page = page }
+  M.frame = {
+    children = children,
+    prefix = prefix,
+    mode = mode,
+    config = config,
+    page = page,
+    columns = columns,
+    column_width = column_width,
+    rows = rows,
+    gap = gap,
+  }
   local key_width = 1
   for _, child in ipairs(children) do
     key_width = math.max(key_width, vim.fn.strdisplaywidth(keys.label(child.key)))
   end
-  key_width = math.min(key_width, math.max(1, math.floor(width / 3)))
+  key_width = math.min(key_width, math.max(1, math.floor(column_width / 3)))
   local lines, spans = {}, {}
-  for i = 1, height do
-    local child = children[M.offset + i]
-    if i > page then
-      lines[i] = clip((" %d-%d/%d  <C-d>/<C-u>"):format(M.offset + 1, M.offset + page, #children), width)
-      spans[i] = { key_end = 0, group = true }
-      break
+  for row = 1, rows do
+    local line = ""
+    for column = 1, columns do
+      local child = children[M.offset + (column - 1) * rows + row]
+      local cell, left = "", ""
+      if child then
+        local label = clip(keys.label(child.key), key_width)
+        left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. "  "
+        cell = clip(left .. child.desc, column_width)
+        local key_end = math.min(#cell, #left)
+        spans[#spans + 1] = { row = row - 1, start = #line, finish = #line + key_end, hl = "KeymapToolsKey" }
+        if child.group and #cell > key_end then
+          spans[#spans + 1] =
+            { row = row - 1, start = #line + key_end, finish = #line + #cell, hl = "KeymapToolsGroup" }
+        end
+      end
+      line = line .. cell
+      if column < columns then
+        line = line .. string.rep(" ", column_width - vim.fn.strdisplaywidth(cell) + gap)
+      end
     end
-    local label = clip(keys.label(child.key), key_width)
-    local left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. "  "
-    local desc = child.desc
-    lines[i] = clip(left .. desc, width)
-    spans[i] = { key_end = math.min(#lines[i], #left), group = child.group }
+    lines[row] = line
+  end
+  if footer then
+    lines[height] =
+      clip((" %d-%d/%d  <C-d>/<C-u>"):format(M.offset + 1, math.min(#children, M.offset + page), #children), width)
+    spans[#spans + 1] = { row = height - 1, start = 0, finish = #lines[height], hl = "KeymapToolsGroup" }
   end
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
     M.buf = vim.api.nvim_create_buf(false, true)
@@ -71,17 +105,8 @@ function M.show(children, prefix, mode, config)
   vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, lines)
   vim.bo[M.buf].modifiable = false
   vim.api.nvim_buf_clear_namespace(M.buf, ns, 0, -1)
-  for i, span in ipairs(spans) do
-    vim.api.nvim_buf_set_extmark(M.buf, ns, i - 1, 0, { end_col = span.key_end, hl_group = "KeymapToolsKey" })
-    if span.group and #lines[i] > span.key_end then
-      vim.api.nvim_buf_set_extmark(
-        M.buf,
-        ns,
-        i - 1,
-        span.key_end,
-        { end_col = #lines[i], hl_group = "KeymapToolsGroup" }
-      )
-    end
+  for _, span in ipairs(spans) do
+    vim.api.nvim_buf_set_extmark(M.buf, ns, span.row, span.start, { end_col = span.finish, hl_group = span.hl })
   end
   local win_config = {
     relative = "editor",

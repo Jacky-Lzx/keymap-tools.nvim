@@ -3,6 +3,8 @@
 Bottom-right Neovim keymap hints and an executable mapping picker powered by
 selection-tools.nvim. Includes operator-pending motions/textobjects, register and
 mark previews, spelling suggestions, dynamic descriptions, and list scrolling.
+Hints use two columns by default, filling top to bottom and then left to right.
+Narrow windows automatically fall back to one column.
 
 Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
 
@@ -83,7 +85,7 @@ require("keymap_tools").setup({
       { prefix = "<C-w>", modes = { "n", "x", "o" } },
     },
   },
-  window = { width = 48, height = 16, border = "rounded" },
+  window = { width = 80, height = 16, columns = 2, border = "rounded" },
   picker = {}, -- selection-tools options, e.g. layout = { width = 0.7 }
   presets = true,
   providers = {
@@ -102,6 +104,10 @@ not inherit modes from unrelated prefix rules. Set a provider to `false` or
 Set `presets = false`, or disable individual `motions`, `navigation`, `windows`,
 `folds`, and `textobjects` catalogs in a presets table. These are descriptions;
 actual Neovim mappings always take precedence.
+
+`window.width` is the total hint width. `columns = 2` is the default; set it to
+`1` for a single column. Paging covers both columns and displays the actual range
+of candidates, including a partially filled final page.
 
 ## Register metadata
 
