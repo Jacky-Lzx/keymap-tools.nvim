@@ -19,33 +19,47 @@ function M.collect(opts, config)
     wanted[kind] = true
   end
   local merged, groups, errors = {}, {}, {}
+  local projection = opts.trigger_prefixes and { prefixes = opts.trigger_prefixes } or nil
   if scope ~= "buffer" then
-    local presets, labels = require("keymap_tools.presets").collect(ctx.mode, config.presets, ctx.operator)
+    local presets, labels = require("keymap_tools.presets").collect(ctx.mode, config.presets, ctx.operator, projection)
     for _, item in ipairs(presets) do
       item.kind, item.source, item.scope = "hint", "builtin:presets", "global"
       merged[item.keys] = item
     end
-    for raw, label in pairs(labels) do
-      groups[raw] = { keys = raw, kind = "group", desc = label, source = "builtin:presets", scope = "global" }
+    if not projection then
+      for raw, label in pairs(labels) do
+        groups[raw] = { keys = raw, kind = "group", desc = label, source = "builtin:presets", scope = "global" }
+      end
     end
     for raw, label in pairs(require("keymap_tools.providers").prefixes(ctx.mode, config.providers)) do
-      merged[raw] = {
-        keys = raw,
-        desc = label,
-        kind = "provider",
-        source = "builtin:providers",
-        scope = "global",
-        provider = true,
-        virtual = true,
-        map = {},
-      }
+      if keys.matches_prefix(raw, opts.trigger_prefixes) then
+        merged[raw] = {
+          keys = raw,
+          desc = label,
+          kind = "provider",
+          source = "builtin:providers",
+          scope = "global",
+          provider = true,
+          virtual = true,
+          map = {},
+        }
+      end
     end
   end
-  for _, item in ipairs(maps.collect({ buf = ctx.buf, mode = ctx.mode, scope = scope, plugs = opts.plugs })) do
+  for _, item in
+    ipairs(maps.collect({
+      buf = ctx.buf,
+      mode = ctx.mode,
+      scope = scope,
+      plugs = opts.plugs,
+      prefixes = opts.trigger_prefixes,
+      minimal = projection ~= nil,
+    }))
+  do
     item.kind, item.source = "mapping", "neovim"
     merged[item.keys] = item
   end
-  local registered = registry.resolve(ctx, scope, errors)
+  local registered = registry.resolve(ctx, scope, errors, projection)
   for raw, entry in pairs(registered.hint) do
     local item = merged[raw]
     if item then
@@ -157,6 +171,26 @@ function M.hints(ctx, config)
     end
   end
   return items, groups
+end
+
+-- Reuse query precedence/conditions without constructing unrelated display rows.
+function M.triggers(ctx, config, prefixes)
+  local rows = M.collect(
+    vim.tbl_extend("force", {}, ctx, {
+      trigger_prefixes = prefixes,
+      include_hidden = true,
+      expand = false,
+      unfiltered = true,
+      sort = false,
+    }),
+    config
+  )
+  local result = {}
+  for _, prefix in ipairs(prefixes) do
+    local matches, exact = maps.match(rows, prefix)
+    result[prefix] = #prefix > 0 and #matches > 0 and (not exact or exact.virtual) or false
+  end
+  return result
 end
 
 return M

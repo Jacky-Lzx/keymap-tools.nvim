@@ -15,6 +15,18 @@ function M.label(raw)
   return vim.fn.keytrans(raw)
 end
 
+function M.matches_prefix(raw, prefixes)
+  if not prefixes then
+    return true
+  end
+  for _, prefix in ipairs(prefixes) do
+    if raw:sub(1, #prefix) == prefix then
+      return true
+    end
+  end
+  return false
+end
+
 -- Convert each key once, rather than crossing into Vimscript in the comparator.
 function M.sort(items, field)
   field = field or "keys"

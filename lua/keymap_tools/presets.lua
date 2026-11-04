@@ -92,14 +92,17 @@ local navigation = {
   ["]}"] = "Next unmatched }",
 }
 
-function M.collect(mode, options, operator)
+function M.collect(mode, options, operator, projection)
   if options == false then
     return {}, {}
   end
   options = type(options) == "table" and options or {}
   local items, groups = {}, {}
   local function add(lhs, desc)
-    items[#items + 1] = { keys = keys.raw(lhs), lhs = lhs, desc = desc, mode = mode, virtual = true, map = {} }
+    local raw = keys.raw(lhs)
+    if keys.matches_prefix(raw, projection and projection.prefixes) then
+      items[#items + 1] = { keys = raw, lhs = lhs, desc = desc, mode = mode, virtual = true, map = {} }
+    end
   end
   local function catalog(name, prefix, source)
     if options[name] ~= false then

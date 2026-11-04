@@ -1,5 +1,6 @@
 local keys = require("keymap_tools.keys")
 local M = {}
+local plug = keys.raw("<Plug>")
 
 -- Trigger callbacks are private implementation details, never picker candidates.
 M.internal = {}
@@ -15,14 +16,14 @@ function M.collect(opts)
     for _, map in ipairs(list) do
       if not M.internal[map.callback] then
         local raw = keys.raw(map.lhs)
-        if opts.plugs or not keys.label(raw):match("^<Plug>") then
+        if keys.matches_prefix(raw, opts.prefixes) and (opts.plugs or raw:sub(1, #plug) ~= plug) then
           merged[raw] = {
             lhs = map.lhs,
             keys = raw,
             mode = mode,
             scope = scope,
-            desc = keys.description(map),
-            map = map,
+            desc = not opts.minimal and keys.description(map) or nil,
+            map = not opts.minimal and map or nil,
             buf = buf,
           }
         end

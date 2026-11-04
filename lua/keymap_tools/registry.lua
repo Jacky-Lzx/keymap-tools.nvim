@@ -141,7 +141,7 @@ function M.register(source, spec)
   return handle
 end
 
-function M.resolve(ctx, scope, errors)
+function M.resolve(ctx, scope, errors, projection)
   local matching = {}
   for _, handle in pairs(records) do
     local data = handle.data
@@ -168,23 +168,26 @@ function M.resolve(ctx, scope, errors)
   local result = { hint = {}, group = {} }
   for _, handle in ipairs(matching) do
     for _, entry in ipairs(handle.data.entries) do
-      local enabled, valid = true, true
-      if entry.mode == ctx.mode then
-        enabled, valid = context.evaluate(entry.when, ctx, errors, handle.source, "when")
-      end
-      if entry.mode == ctx.mode and valid and enabled ~= false then
-        local text =
-          context.evaluate(entry.text, ctx, errors, handle.source, entry.kind == "group" and "label" or "desc")
-        if type(text) == "string" then
-          result[entry.kind][entry.raw] = {
-            keys = entry.raw,
-            kind = entry.kind,
-            desc = text,
-            source = handle.source,
-            scope = handle.data.buf and "buffer" or "global",
-            buf = handle.data.buf,
-            hidden = context.evaluate(entry.hidden, ctx, errors, handle.source, "hidden") == true,
-          }
+      if
+        entry.mode == ctx.mode
+        and (not projection or entry.kind ~= "group")
+        and keys.matches_prefix(entry.raw, projection and projection.prefixes)
+      then
+        local enabled, valid = context.evaluate(entry.when, ctx, errors, handle.source, "when")
+        if valid and enabled ~= false then
+          local text =
+            context.evaluate(entry.text, ctx, errors, handle.source, entry.kind == "group" and "label" or "desc")
+          if type(text) == "string" then
+            result[entry.kind][entry.raw] = {
+              keys = entry.raw,
+              kind = entry.kind,
+              desc = text,
+              source = handle.source,
+              scope = handle.data.buf and "buffer" or "global",
+              buf = handle.data.buf,
+              hidden = not projection and context.evaluate(entry.hidden, ctx, errors, handle.source, "hidden") == true,
+            }
+          end
         end
       end
     end

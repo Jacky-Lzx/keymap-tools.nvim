@@ -82,21 +82,23 @@ function M.refresh()
   end
   local modes = { "n", "x", "o", "i", "c" }
   for _, mode in ipairs(modes) do
-    local items, seen = query.hints({ buf = buf, mode = mode }, config), {}
-    local triggers = {}
+    local prefixes, seen = {}, {}
+    local function add(raw)
+      if #raw > 0 and not seen[raw] then
+        prefixes[#prefixes + 1], seen[raw] = raw, true
+      end
+    end
     for _, trigger in ipairs(config.hints.triggers) do
       if vim.tbl_contains(trigger.modes, mode) then
-        triggers[#triggers + 1] = trigger.prefix
+        add(keys.raw(trigger.prefix))
       end
     end
     for raw in pairs(providers.prefixes(mode, config.providers)) do
-      triggers[#triggers + 1] = keys.label(raw)
+      add(raw)
     end
-    for _, lhs in ipairs(triggers) do
-      local raw = keys.raw(lhs)
-      local matches, exact = maps.match(items, raw)
-      if #raw > 0 and not seen[raw] and #matches > 0 and (not exact or exact.virtual) then
-        seen[raw] = true
+    local eligible = #prefixes > 0 and query.triggers({ buf = buf, mode = mode }, config, prefixes) or {}
+    for _, raw in ipairs(prefixes) do
+      if eligible[raw] then
         desired[#desired + 1] = { buf = buf, mode = mode, lhs = keys.label(raw), raw = raw }
       end
     end
