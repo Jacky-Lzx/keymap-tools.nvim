@@ -8,15 +8,21 @@ for _, lhs in ipairs({ "<leader>", "g", "z", "a", "i", '"', "'", "<C-r>", "<F3>"
   prefixes[#prefixes + 1] = keys.raw(lhs)
 end
 local function parity(buf, mode)
-  local ctx = { buf = buf, mode = mode }
-  local items = query.hints(ctx, config)
-  local actual = query.triggers(ctx, config, prefixes)
-  for _, prefix in ipairs(prefixes) do
-    local matches, exact = maps.match(items, prefix)
-    local expected = #matches > 0 and (not exact or exact.virtual) or false
-    assert(actual[prefix] == expected, "trigger projection disagrees for " .. mode .. ":" .. keys.label(prefix))
+  for _, scope in ipairs({ "effective", "global", "buffer" }) do
+    local ctx = { buf = buf, mode = mode, scope = scope }
+    local items = query.hints(ctx, config)
+    local actual = query.triggers(ctx, config, prefixes)
+    for _, prefix in ipairs(prefixes) do
+      local matches, exact = maps.match(items, prefix)
+      local expected = #matches > 0 and (not exact or exact.virtual) or false
+      assert(
+        actual[prefix] == expected,
+        "trigger projection disagrees for " .. scope .. ":" .. mode .. ":" .. keys.label(prefix)
+      )
+    end
   end
 end
+
 local active, desc = true, "Dynamic"
 local first = api.nvim_get_current_buf()
 vim.keymap.set("n", "<leader>aa", "<Nop>")

@@ -31,11 +31,11 @@ function M.collect(opts)
     end
   end
   if opts.scope ~= "buffer" then
-    add(vim.api.nvim_get_keymap(mode), "global")
+    add(opts.native_maps and opts.native_maps.global or vim.api.nvim_get_keymap(mode), "global")
   end
   -- Local maps win even when their spelling differs (<Space> versus a literal space).
   if opts.scope ~= "global" then
-    add(vim.api.nvim_buf_get_keymap(buf, mode), "buffer")
+    add(opts.native_maps and opts.native_maps.buffer or vim.api.nvim_buf_get_keymap(buf, mode), "buffer")
   end
   return vim.tbl_values(merged)
 end

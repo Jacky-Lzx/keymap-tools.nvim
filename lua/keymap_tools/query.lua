@@ -54,6 +54,7 @@ function M.collect(opts, config)
       plugs = opts.plugs,
       prefixes = opts.trigger_prefixes,
       minimal = projection ~= nil,
+      native_maps = opts.native_maps,
     }))
   do
     item.kind, item.source = "mapping", "neovim"
@@ -175,22 +176,55 @@ function M.hints(ctx, config)
   return items, groups
 end
 
--- Reuse query precedence/conditions without constructing unrelated display rows.
-function M.triggers(ctx, config, prefixes)
-  local rows = M.collect(
-    vim.tbl_extend("force", {}, ctx, {
-      trigger_prefixes = prefixes,
-      include_hidden = true,
-      expand = false,
-      unfiltered = true,
-      sort = false,
-    }),
-    config
-  )
-  local result = {}
+-- Installation only needs prefix existence and exact native ownership. Resolve
+-- dynamic registry conditions normally, without building the public display model.
+function M.triggers(opts, config, prefixes)
+  local ctx = context.resolve(opts)
+  local scope = opts.scope or "effective"
+  assert(vim.tbl_contains({ "effective", "global", "buffer" }, scope), "keymap-tools: invalid scope")
+  local result, exact = {}, {}
   for _, prefix in ipairs(prefixes) do
-    local matches, exact = maps.match(rows, prefix)
-    result[prefix] = #prefix > 0 and #matches > 0 and (not exact or exact.virtual) or false
+    result[prefix] = false
+  end
+  local function add(raw, native)
+    for _, prefix in ipairs(prefixes) do
+      if #prefix > 0 and raw:sub(1, #prefix) == prefix then
+        result[prefix] = true
+        if native and raw == prefix then
+          exact[prefix] = true
+        end
+      end
+    end
+  end
+  if scope ~= "buffer" then
+    local presets =
+      require("keymap_tools.presets").collect(ctx.mode, config.presets, ctx.operator, { prefixes = prefixes })
+    for _, item in ipairs(presets) do
+      add(item.keys)
+    end
+    for raw in pairs(require("keymap_tools.providers").prefixes(ctx.mode, config.providers)) do
+      add(raw)
+    end
+  end
+  for _, item in
+    ipairs(maps.collect({
+      buf = ctx.buf,
+      mode = ctx.mode,
+      scope = scope,
+      plugs = opts.plugs,
+      prefixes = prefixes,
+      minimal = true,
+      native_maps = opts.native_maps,
+    }))
+  do
+    add(item.keys, true)
+  end
+  local registered = registry.resolve(ctx, scope, {}, { prefixes = prefixes })
+  for raw in pairs(registered.hint) do
+    add(raw)
+  end
+  for prefix in pairs(exact) do
+    result[prefix] = false
   end
   return result
 end

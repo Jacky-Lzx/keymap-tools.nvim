@@ -10,7 +10,8 @@ local config
 local pending
 
 -- Read each buffer/mode once, and never delete a mapping another owner replaced.
-local function installed(triggers)
+local function installed(triggers, read_buffer_maps)
+  read_buffer_maps = read_buffer_maps or api.nvim_buf_get_keymap
   local snapshots = {}
   for _, trigger in ipairs(triggers) do
     if api.nvim_buf_is_valid(trigger.buf) then
@@ -18,7 +19,7 @@ local function installed(triggers)
       snapshots[trigger.buf] = buffer
       if not buffer[trigger.mode] then
         local callbacks = {}
-        for _, map in ipairs(api.nvim_buf_get_keymap(trigger.buf, trigger.mode)) do
+        for _, map in ipairs(read_buffer_maps(trigger.buf, trigger.mode)) do
           callbacks[keys.raw(map.lhs)] = map.callback
         end
         buffer[trigger.mode] = callbacks
@@ -72,7 +73,19 @@ function M.refresh()
     M.detach()
     return
   end
-  local previous, snapshots = M.triggers, installed(M.triggers)
+  -- Ownership and trigger queries must see the same native maps. Continue
+  -- reading them on every refresh so Vimscript and direct API changes remain
+  -- visible without wrapping or replacing Neovim's mapping APIs.
+  local native = {}
+  local function buffer_maps(buffer, mode)
+    if buffer ~= buf then
+      return api.nvim_buf_get_keymap(buffer, mode)
+    end
+    native[mode] = native[mode] or {}
+    native[mode].buffer = native[mode].buffer or api.nvim_buf_get_keymap(buffer, mode)
+    return native[mode].buffer
+  end
+  local previous, snapshots = M.triggers, installed(M.triggers, buffer_maps)
   local reusable, retained, desired = {}, {}, {}
   for _, trigger in ipairs(previous) do
     if trigger.buf == buf and owned(trigger, snapshots) then
@@ -95,7 +108,12 @@ function M.refresh()
     for raw in pairs(providers.prefixes(mode, config.providers)) do
       add(raw)
     end
-    local eligible = #prefixes > 0 and query.triggers({ buf = buf, mode = mode }, config, prefixes) or {}
+    local eligible = {}
+    if #prefixes > 0 then
+      buffer_maps(buf, mode)
+      native[mode].global = api.nvim_get_keymap(mode)
+      eligible = query.triggers({ buf = buf, mode = mode, native_maps = native[mode] }, config, prefixes)
+    end
     for _, raw in ipairs(prefixes) do
       if eligible[raw] then
         desired[#desired + 1] = { buf = buf, mode = mode, lhs = keys.label(raw), raw = raw }

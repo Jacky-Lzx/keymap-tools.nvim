@@ -1,14 +1,28 @@
 local M = {}
+local raw_cache, raw_count = {}, 0
 
 function M.raw(keys)
-  keys = keys
-    :gsub("<[Ll][Ee][Aa][Dd][Ee][Rr]>", function()
-      return vim.g.mapleader or "\\"
-    end)
-    :gsub("<[Ll][Oo][Cc][Aa][Ll][Ll][Ee][Aa][Dd][Ee][Rr]>", function()
-      return vim.g.maplocalleader or "\\"
-    end)
-  return vim.api.nvim_replace_termcodes(keys, true, true, true)
+  local cached = raw_cache[keys]
+  if cached then
+    return cached
+  end
+  local expanded, leaders = keys:gsub("<[Ll][Ee][Aa][Dd][Ee][Rr]>", function()
+    return vim.g.mapleader or "\\"
+  end)
+  local locals
+  expanded, locals = expanded:gsub("<[Ll][Oo][Cc][Aa][Ll][Ll][Ee][Aa][Dd][Ee][Rr]>", function()
+    return vim.g.maplocalleader or "\\"
+  end)
+  local raw = vim.api.nvim_replace_termcodes(expanded, true, true, true)
+  -- Native lhs spellings and presets are stable; leader expressions deliberately
+  -- stay live so changing either leader immediately affects registrations/queries.
+  if leaders == 0 and locals == 0 then
+    if raw_count >= 2048 then
+      raw_cache, raw_count = {}, 0
+    end
+    raw_cache[keys], raw_count = raw, raw_count + 1
+  end
+  return raw
 end
 
 function M.label(raw)
