@@ -57,6 +57,7 @@ end
 for _, invalid in ipairs({
   false,
   { hints = { delay = -1 } },
+  { hints = { filter = true } },
   { hints = { delay = math.huge } },
   { window = { width = math.huge } },
   { window = { border = "bad" } },

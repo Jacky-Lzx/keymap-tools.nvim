@@ -5,7 +5,15 @@ for _, prefix in ipairs({ "<leader>", "<localleader>", "g", "z", "[", "]", "<C-w
 end
 local defaults = {
   defer = false,
-  hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
+  hints = {
+    enabled = true,
+    delay = 200,
+    triggers = triggers,
+    operators = true,
+    filter = function(ctx)
+      return ctx.buftype == ""
+    end,
+  },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
   icons = { enabled = true, rules = {} },
   picker = { scope = "effective", keys = { toggle_buffer = { "<A-b>" }, toggle_global = { "<A-g>" } } },
@@ -173,6 +181,7 @@ function M.normalize(opts)
     type(result.hints.delay) == "number" and result.hints.delay >= 0 and result.hints.delay < math.huge,
     "keymap-tools: delay must be nonnegative"
   )
+  assert(type(result.hints.filter) == "function", "keymap-tools: hints.filter must be a function")
   assert(vim.islist(result.hints.triggers), "keymap-tools: hints.triggers must be a list")
   for _, trigger in ipairs(result.hints.triggers) do
     assert(

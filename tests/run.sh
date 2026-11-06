@@ -18,6 +18,7 @@ export NVIM_LOG_FILE="$test_root/nvim.log" PYTHONDONTWRITEBYTECODE=1
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/performance.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/refresh.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/triggers.lua
+"${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/filter.lua
 for test in lazy lazy_explicit showkeys setup_contract; do
   "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin \
     -c "lua local ok, err = pcall(dofile, 'tests/$test.lua'); if not ok then print(err); vim.cmd('cquit 1') end" +qa!

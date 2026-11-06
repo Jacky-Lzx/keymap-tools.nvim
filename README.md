@@ -129,6 +129,9 @@ require("keymap_tools").setup({
     enabled = true, -- Automatic hints only; explicit show()/pick() remain usable
     delay = 200, -- Initial display only, in milliseconds
     operators = true, -- Start hints on entering operator-pending mode
+    filter = function(ctx) -- Automatic hints only; default excludes special buffers
+      return ctx.buftype == ""
+    end,
     triggers = {
       { prefix = "<leader>", modes = { "n", "x", "o" } },
       { prefix = "<localleader>", modes = { "n", "x", "o" } },
@@ -156,6 +159,25 @@ Trigger lists replace defaults as a whole, including an empty list. Provider
 triggers are enabled by their own options, subject to `hints.enabled`; they do
 not inherit modes from unrelated prefix rules. Set a provider to `false` or
 `{ enabled = false }` to disable it. Trigger modes are `n/x/o/i/c`.
+
+`hints.filter(ctx)` decides which automatic triggers may attach, including provider
+and operator-pending hints. It receives `buf`, `win`, `mode`, `prefix` (expanded
+key notation such as `<Space>`), `buftype`, and `filetype`. Operator entry uses an
+empty prefix. Return `true` to allow a trigger; errors and other return values
+skip it. The filter is checked again when a trigger fires, and never changes
+explicit `show()`, `pick()` or `list()` calls. Exact native mappings retain
+precedence, including `<Nop>` bindings. For example, to opt a dashboard into
+Normal-mode leader hints while retaining ordinary-buffer behavior:
+
+```lua
+hints = {
+  filter = function(ctx)
+    return ctx.buftype == ""
+      or (ctx.buftype == "nofile" and ctx.filetype == "my_dashboard"
+        and ctx.mode == "n" and vim.keycode(ctx.prefix) == vim.g.mapleader)
+  end,
+}
+```
 
 Set `presets = false`, or disable individual `motions`, `navigation`, `windows`,
 `folds`, and `textobjects` catalogs in a presets table. These are descriptions;

@@ -76,13 +76,22 @@ function M.request_refresh()
   end)
 end
 
+local function automatic_allowed(state)
+  local ctx = vim.tbl_extend("force", {}, state, {
+    buftype = vim.bo[state.buf].buftype,
+    filetype = vim.bo[state.buf].filetype,
+  })
+  local ok, allowed = pcall(config.hints.filter, ctx)
+  return ok and allowed == true
+end
+
 function M.refresh()
   pending = nil
   if not config or M.session or M.suspended then
     return
   end
   local buf = api.nvim_get_current_buf()
-  if not config.hints.enabled or vim.bo[buf].buftype ~= "" or vim.fn.reg_recording() ~= "" then
+  if not config.hints.enabled or vim.fn.reg_recording() ~= "" then
     M.detach()
     return
   end
@@ -114,7 +123,12 @@ function M.refresh()
     local prefixes, seen = {}, {}
     local function add(raw)
       if #raw > 0 and not seen[raw] then
-        prefixes[#prefixes + 1], seen[raw] = raw, true
+        seen[raw] = true
+        if
+          automatic_allowed({ buf = buf, win = api.nvim_get_current_win(), mode = mode, prefix = keys.label(raw) })
+        then
+          prefixes[#prefixes + 1] = raw
+        end
       end
     end
     for _, trigger in ipairs(config.hints.triggers) do
@@ -329,6 +343,18 @@ function M.show(opts)
   end
   local state = context.resolve(opts)
   if state.win ~= api.nvim_get_current_win() or state.mode ~= keys.mode() then
+    return false
+  end
+  if opts.automatic and not automatic_allowed(state) then
+    -- A buffer option or dynamic filter may change after trigger installation.
+    -- Give a captured prefix back to Neovim instead of swallowing the input.
+    if state.prefix ~= "" then
+      M.replay(
+        keys.raw(state.prefix),
+        state.mode == "n" and state.count or 0,
+        state.mode == "n" and state.register or nil
+      )
+    end
     return false
   end
   M.session = state
