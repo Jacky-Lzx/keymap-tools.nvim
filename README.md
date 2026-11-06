@@ -575,3 +575,6 @@ Commands belong to the plugin; choose global entry keys and short aliases in
 your configuration. Registration reports same-name conflicts without replacing
 user commands. Reconfiguration refreshes only commands still owned by this
 plugin, and cleanup preserves subsequent user replacements.
+
+`:checkhealth keymap_tools` checks picker and optional theme providers without
+loading them. Core hints do not require selection-tools; the execution picker does.
