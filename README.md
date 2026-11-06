@@ -519,6 +519,10 @@ The picker uses the same query model but includes only actual, effective
 mappings. Its optional `global`/`buffer` scope filters that effective set; it
 never offers a shadowed global mapping that would replay a different local map.
 Normal, Visual and Insert pickers execute in their original mode.
+Inside selection-tools windows the default is `scope = "buffer"`, so unrelated
+global editing/completion mappings are omitted. Picker mappings and other custom
+buffer-local mappings remain searchable. Ordinary editing buffers default to
+`scope = "effective"`; pass an explicit scope to override either default.
 
 ## API change
 

@@ -39,12 +39,31 @@ local function check()
     end)
   end
   local editor = api.nvim_get_current_win()
+  local global_hits, local_hits = 0, 0
+  vim.keymap.set({ "n", "i" }, "<F10>", function()
+    global_hits = global_hits + 1
+  end, { desc = "Editor-only global test action" })
   local latest
   local select_items = selection.select
   selection.select = function(...)
     latest = select_items(...)
     return latest
   end
+  -- Ordinary editor buffers still expose their global mappings.
+  local ordinary = tools.pick()
+  wait_for(function()
+    return api.nvim_get_mode().mode == "i" and not ordinary.closed
+  end, "ordinary editor keymap picker")
+  assert(
+    vim.iter(ordinary.matches):any(function(entry)
+      return entry.item.scope == "global" and entry.item.keys == vim.keycode("<F10>")
+    end),
+    "Ordinary buffer lost its global mappings"
+  )
+  send("\27")
+  wait_for(function()
+    return ordinary.closed and api.nvim_get_current_win() == editor and api.nvim_get_mode().mode == "n"
+  end, "return to ordinary editor")
   local chosen, cancels, source
   local items = {}
   for i = 1, 40 do
@@ -77,6 +96,11 @@ local function check()
         end
       end,
     })
+    local owner = source
+    vim.keymap.set("i", "<F11>", function()
+      assert(api.nvim_get_current_win() == owner.input_win and api.nvim_get_mode().mode == "i")
+      local_hits = local_hits + 1
+    end, { buffer = owner.input_buf, desc = "Picker-local test action" })
     wait_for(function()
       return api.nvim_get_mode().mode == "i" and source.preview.displayed_item
     end, "parent input")
@@ -99,7 +123,12 @@ local function check()
     end, "child input")
     assert(not source.closed and latest.parent == source and source.child == latest)
     assert(api.nvim_buf_is_valid(source.input_buf) and selection.current() == latest)
-    assert(latest.matches[1].item.scope == "buffer", "Parent-local actions should be first")
+    for _, entry in ipairs(latest.matches) do
+      assert(
+        entry.item.scope == "buffer",
+        "Nested search included a global editor/completion mapping: " .. entry.item.desc
+      )
+    end
     assert(api.nvim_win_get_config(latest.frame_win).zindex > api.nvim_win_get_config(source.list_win).zindex)
     return latest
   end
@@ -153,6 +182,25 @@ local function check()
   assert(source:current() == current and source.index == index and vim.deep_equal(source.marks, marks))
   assert(vim.deep_equal(api.nvim_win_get_cursor(source.input_win), cursor))
   assert(api.nvim_win_call(source.preview_win, vim.fn.winsaveview).topline == top)
+  -- Explicit effective scope remains available for callers asking for all maps.
+  child = tools.pick({ scope = "effective" })
+  wait_for(function()
+    return not child.closed and api.nvim_get_mode().mode == "i"
+  end, "explicit effective scope")
+  assert(
+    vim.iter(child.matches):any(function(entry)
+      return entry.item.scope == "global" and entry.item.keys == vim.keycode("<F10>")
+    end),
+    "Explicit effective scope lost global mappings"
+  )
+  send("\27")
+  restored(child)
+  child = choose("Picker-local test action", "<F11>")
+  restored(child)
+  wait_for(function()
+    return local_hits == 1
+  end, "custom input-local mapping")
+  assert(global_hits == 0 and source.query == "entry")
   -- Resize both live layouts while the child owns focus.
   child = open()
   vim.fn.writefile({ "70" }, directory .. "/resize")
@@ -268,7 +316,7 @@ timer:start(
       vim.fn.writefile(
         ok
             and {
-              "PASS nested picker PTY: live parent state, rendered action search, Ctrl+/ toggle, parent navigation/preview/confirm/close, real file source, resize, outside mouse, parent destruction and disposal",
+              "PASS nested picker PTY: context-local defaults, explicit global inclusion, custom local replay, live parent state, rendered action search, Ctrl+/ toggle, parent navigation/preview/confirm/close, real file source, resize, outside mouse, parent destruction and disposal",
             }
           or vim.split(tostring(err) .. "\nStep: " .. step .. "\n" .. debug.traceback(thread), "\n", { plain = true }),
         vim.env.KEYMAP_TOOLS_RESULT or directory .. "/result"

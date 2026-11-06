@@ -43,6 +43,7 @@ function M.open(opts)
     return true
   end
   local parent = selection.current(origin.win)
+  local scope = opts.scope or (parent and "buffer" or "effective")
   local config = require("keymap_tools.config").get()
   local icons = require("keymap_tools.icons")
   local display = require("keymap_tools.display")
@@ -63,10 +64,10 @@ function M.open(opts)
       return item.keys:sub(1, #prefix) == prefix
     end, items)
   end
-  if opts.scope and opts.scope ~= "effective" then
-    assert(opts.scope == "global" or opts.scope == "buffer", "keymap-tools: invalid picker scope")
+  if scope ~= "effective" then
+    assert(scope == "global" or scope == "buffer", "keymap-tools: invalid picker scope")
     items = vim.tbl_filter(function(item)
-      return item.scope == opts.scope
+      return item.scope == scope
     end, items)
   end
   if #items == 0 then

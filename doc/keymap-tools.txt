@@ -312,12 +312,15 @@ See README.md for installation and validation details.
 
 NESTED PICKER INPUT                                      *keymap-tools-nested*
 
-Calling pick() from selection-tools input opens a temporary child. Parent-local
-mappings appear first, with selection-tools action descriptions. Search in the
-child, then confirm to return to the original input and replay its mapping in
-the original mode. Cancel preserves the parent's query, cursor, selection, marks
-and preview. Calling pick() again from the keymap picker closes it instead of
-nesting recursively. Closing the parent or leaving the picker chain cancels
-pending replay and never steals focus from another editor window.
+Calling pick() from selection-tools input opens a temporary child. It defaults
+to scope="buffer", showing the parent's local mappings and action descriptions
+without unrelated global editing/completion mappings. Ordinary editor buffers
+default to scope="effective". An explicit scope overrides the default. Search
+in the child, then confirm to return to the original input and replay its
+mapping in the original mode. Cancel preserves the parent's query, cursor,
+selection, marks and preview. Calling pick() again from the keymap picker
+closes it instead of nesting recursively. Closing the parent or leaving the
+picker chain cancels pending replay and never steals focus from another editor
+window.
 
 vim:tw=78:ts=8:ft=help:norl:
