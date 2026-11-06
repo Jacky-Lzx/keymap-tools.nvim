@@ -77,7 +77,7 @@ local function check()
     wait_for(function()
       return latest ~= previous and latest and not latest.closed and api.nvim_get_mode().mode == "i"
     end, "Insert picker input")
-    assert(latest.opts.prompt == "Buffer keymaps · i")
+    assert(latest.opts.prompt:find("global:on", 1, true) and latest.opts.prompt:match("i$"))
     for _, entry in ipairs(latest.matches) do
       assert(entry.item.desc ~= "Normal only action" and entry.item.desc ~= "Shadowed Insert action")
     end

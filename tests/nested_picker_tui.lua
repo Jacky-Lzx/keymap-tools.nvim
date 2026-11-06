@@ -43,27 +43,87 @@ local function check()
   vim.keymap.set({ "n", "i" }, "<F10>", function()
     global_hits = global_hits + 1
   end, { desc = "Editor-only global test action" })
+  vim.keymap.set({ "n", "i" }, "<F9>", "<Nop>", {
+    buffer = api.nvim_get_current_buf(),
+    desc = "Editor local test action",
+  })
+  local function grouped(picker, buffer_on, global_on)
+    local global_seen = false
+    for _, entry in ipairs(picker.matches) do
+      if entry.item.scope == "buffer" then
+        assert(buffer_on and not global_seen, "Buffer mappings must precede globals")
+      else
+        assert(entry.item.scope == "global" and global_on, "Unexpected global mapping")
+        global_seen = true
+      end
+    end
+  end
+  local function visible(text)
+    vim.cmd.redraw()
+    local frame = ""
+    for row = 1, vim.o.lines do
+      for col = 1, vim.o.columns do
+        frame = frame .. vim.fn.screenstring(row, col)
+      end
+    end
+    assert(frame:find(text, 1, true), "Missing rendered filter state: " .. text)
+  end
   local latest
   local select_items = selection.select
   selection.select = function(...)
     latest = select_items(...)
     return latest
   end
-  -- Ordinary editor buffers still expose their global mappings.
   local ordinary = tools.pick()
   wait_for(function()
     return api.nvim_get_mode().mode == "i" and not ordinary.closed
-  end, "ordinary editor keymap picker")
+  end, "ordinary keymap picker")
+  grouped(ordinary, true, true)
+  visible("Alt+b buffer:on")
+  visible("Alt+g global:on")
+  assert(vim.iter(ordinary.matches):any(function(entry)
+    return entry.item.keys == vim.keycode("<F9>")
+  end))
+  assert(vim.iter(ordinary.matches):any(function(entry)
+    return entry.item.keys == vim.keycode("<F10>")
+  end))
+  send("Editor")
+  wait_for(function()
+    return ordinary.query == "Editor" and not ordinary.matching
+  end, "ordinary query")
+  grouped(ordinary, true, true)
+  send("\27g")
+  wait_for(function()
+    return ordinary.opts.prompt:find("global:off", 1, true) and not ordinary.matching
+  end, "hide globals")
+  grouped(ordinary, true, false)
+  send("\27b")
+  wait_for(function()
+    return ordinary.opts.prompt:find("buffer:off", 1, true) and #ordinary.matches == 0
+  end, "hide both scopes")
+  assert(ordinary.query == "Editor")
+  visible("Alt+b buffer:off")
+  visible("Alt+g global:off")
+  send("\27g")
+  wait_for(function()
+    return ordinary.opts.prompt:find("global:on", 1, true) and #ordinary.matches > 0 and not ordinary.matching
+  end, "show globals only")
+  grouped(ordinary, false, true)
+  local global_choice = ordinary:current()
+  send("\27b")
+  wait_for(function()
+    return ordinary.opts.prompt:find("buffer:on", 1, true) and not ordinary.matching
+  end, "restore both scopes")
   assert(
-    vim.iter(ordinary.matches):any(function(entry)
-      return entry.item.scope == "global" and entry.item.keys == vim.keycode("<F10>")
-    end),
-    "Ordinary buffer lost its global mappings"
+    ordinary:current().keys == global_choice.keys and ordinary:current().scope == "global",
+    "Visible global selection was lost"
   )
+  grouped(ordinary, true, true)
+  assert(ordinary.query == "Editor")
   send("\27")
   wait_for(function()
     return ordinary.closed and api.nvim_get_current_win() == editor and api.nvim_get_mode().mode == "n"
-  end, "return to ordinary editor")
+  end, "return to editor")
   local chosen, cancels, source
   local items = {}
   for i = 1, 40 do
@@ -123,12 +183,7 @@ local function check()
     end, "child input")
     assert(not source.closed and latest.parent == source and source.child == latest)
     assert(api.nvim_buf_is_valid(source.input_buf) and selection.current() == latest)
-    for _, entry in ipairs(latest.matches) do
-      assert(
-        entry.item.scope == "buffer",
-        "Nested search included a global editor/completion mapping: " .. entry.item.desc
-      )
-    end
+    grouped(latest, true, true)
     assert(api.nvim_win_get_config(latest.frame_win).zindex > api.nvim_win_get_config(source.list_win).zindex)
     return latest
   end
@@ -182,17 +237,57 @@ local function check()
   assert(source:current() == current and source.index == index and vim.deep_equal(source.marks, marks))
   assert(vim.deep_equal(api.nvim_win_get_cursor(source.input_win), cursor))
   assert(api.nvim_win_call(source.preview_win, vim.fn.winsaveview).topline == top)
-  -- Explicit effective scope remains available for callers asking for all maps.
-  child = tools.pick({ scope = "effective" })
+  child = open()
+  send("Picker-local test action")
+  wait_for(function()
+    return child.query == "Picker-local test action" and not child.matching and #child.matches == 1
+  end, "local query before toggle")
+  local selected = child:current()
+  send("\27g")
+  wait_for(function()
+    return child.opts.prompt:find("global:off", 1, true) and not child.matching
+  end, "hide globals in nested search")
+  assert(child.query == "Picker-local test action" and child:current().keys == selected.keys)
+  require("keymap_tools.picker").redraw()
+  assert(child.query == "Picker-local test action" and child:current().keys == selected.keys)
+  send("\27g")
+  wait_for(function()
+    return child.opts.prompt:find("global:on", 1, true) and not child.matching
+  end, "restore globals in nested search")
+  assert(child.query == "Picker-local test action" and child:current().keys == selected.keys)
+  send("\27")
+  restored(child)
+  -- Global mappings still execute in the original input and mode.
+  child = open()
+  send("Editor-only global test action")
+  wait_for(function()
+    return child.query == "Editor-only global test action" and #child.matches == 1 and not child.matching
+  end, "nested global query")
+  send("\r")
+  restored(child)
+  wait_for(function()
+    return global_hits == 1
+  end, "global replay from nested picker")
+  -- Initial scope and toggle keys can be configured per picker.
+  child = tools.pick({ scope = "global", keys = { toggle_buffer = { "<A-v>" }, toggle_global = { "<A-z>" } } })
   wait_for(function()
     return not child.closed and api.nvim_get_mode().mode == "i"
-  end, "explicit effective scope")
-  assert(
-    vim.iter(child.matches):any(function(entry)
-      return entry.item.scope == "global" and entry.item.keys == vim.keycode("<F10>")
-    end),
-    "Explicit effective scope lost global mappings"
-  )
+  end, "explicit global scope")
+  grouped(child, false, true)
+  send("Picker-local test action")
+  wait_for(function()
+    return child.query == "Picker-local test action" and #child.matches == 0 and not child.matching
+  end, "hidden local query")
+  send("\27v")
+  wait_for(function()
+    return #child.matches == 1 and not child.matching
+  end, "custom buffer toggle key")
+  assert(child.query == "Picker-local test action" and child:current().scope == "buffer")
+  send("\27z")
+  wait_for(function()
+    return child.opts.prompt:find("global:off", 1, true) and not child.matching
+  end, "custom global toggle key")
+  grouped(child, true, false)
   send("\27")
   restored(child)
   child = choose("Picker-local test action", "<F11>")
@@ -200,7 +295,7 @@ local function check()
   wait_for(function()
     return local_hits == 1
   end, "custom input-local mapping")
-  assert(global_hits == 0 and source.query == "entry")
+  assert(global_hits == 1 and source.query == "entry")
   -- Resize both live layouts while the child owns focus.
   child = open()
   vim.fn.writefile({ "70" }, directory .. "/resize")
@@ -316,7 +411,7 @@ timer:start(
       vim.fn.writefile(
         ok
             and {
-              "PASS nested picker PTY: context-local defaults, explicit global inclusion, custom local replay, live parent state, rendered action search, Ctrl+/ toggle, parent navigation/preview/confirm/close, real file source, resize, outside mouse, parent destruction and disposal",
+              "PASS nested picker PTY: buffer-first defaults, independent Alt+b/Alt+g filters, query/selection/empty-list/global replay, custom scope/keys, local replay, live parent state, rendered action search, Ctrl+/ toggle, parent navigation/preview/confirm/close, real file source, resize, outside mouse, parent destruction and disposal",
             }
           or vim.split(tostring(err) .. "\nStep: " .. step .. "\n" .. debug.traceback(thread), "\n", { plain = true }),
         vim.env.KEYMAP_TOOLS_RESULT or directory .. "/result"

@@ -8,7 +8,7 @@ local defaults = {
   hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
   icons = { enabled = true, rules = {} },
-  picker = {},
+  picker = { scope = "effective", keys = { toggle_buffer = { "<A-b>" }, toggle_global = { "<A-g>" } } },
   showkeys = {
     enabled = false,
     timeout = 3, -- Seconds, matching showkeys.
@@ -206,6 +206,17 @@ function M.normalize(opts)
     type(result.picker) == "table" and result.picker.key == nil,
     "keymap-tools: bind picker shortcuts with vim.keymap.set()"
   )
+  assert(
+    vim.tbl_contains({ "buffer", "global", "effective" }, result.picker.scope),
+    "keymap-tools: invalid picker scope"
+  )
+  assert(type(result.picker.keys) == "table", "keymap-tools: picker.keys must be a table")
+  for _, name in ipairs({ "toggle_buffer", "toggle_global" }) do
+    assert(vim.islist(result.picker.keys[name]), "keymap-tools: picker.keys." .. name .. " must be a list")
+    for _, key in ipairs(result.picker.keys[name]) do
+      assert(type(key) == "string" and key ~= "", "keymap-tools: scope toggle keys must be nonempty strings")
+    end
+  end
   for name, option in pairs(result.providers) do
     assert(defaults.providers[name] ~= nil, "keymap-tools: unknown provider: " .. name)
     assert(

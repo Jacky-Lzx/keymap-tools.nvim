@@ -43,37 +43,54 @@ function M.open(opts)
     return true
   end
   local parent = selection.current(origin.win)
-  local scope = opts.scope or (parent and "buffer" or "effective")
   local config = require("keymap_tools.config").get()
+  local picker_opts = vim.tbl_deep_extend("force", {}, config.picker, opts)
+  local scope = picker_opts.scope
+  assert(vim.tbl_contains({ "buffer", "global", "effective" }, scope), "keymap-tools: invalid picker scope")
+  local shown = { buffer = scope ~= "global", global = scope ~= "buffer" }
+  local toggle_keys = { buffer = picker_opts.keys.toggle_buffer, global = picker_opts.keys.toggle_global }
   local icons = require("keymap_tools.icons")
   local display = require("keymap_tools.display")
   require("keymap_tools.view").highlights()
-  local items =
-    query.collect(vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" } }), config)
-  if parent then
+  local function collect(include_hidden)
+    local items = query.collect(
+      vim.tbl_extend(
+        "force",
+        {},
+        origin,
+        { scope = "effective", kinds = { "mapping" }, include_hidden = include_hidden }
+      ),
+      config
+    )
+    if opts.prefix then
+      local prefix = keys.raw(opts.prefix)
+      items = vim.tbl_filter(function(item)
+        return item.keys:sub(1, #prefix) == prefix
+      end, items)
+    end
     local local_items, global_items = {}, {}
     for _, item in ipairs(items) do
-      local target = item.scope == "buffer" and local_items or global_items
-      target[#target + 1] = item
+      if shown[item.scope] then
+        local target = item.scope == "buffer" and local_items or global_items
+        target[#target + 1] = item
+      end
     end
     items = vim.list_extend(local_items, global_items)
+    return items
   end
-  if opts.prefix then
-    local prefix = keys.raw(opts.prefix)
-    items = vim.tbl_filter(function(item)
-      return item.keys:sub(1, #prefix) == prefix
-    end, items)
+  local function prompt()
+    local labels = { "Keymaps" }
+    for _, name in ipairs({ "buffer", "global" }) do
+      local key = toggle_keys[name][1]
+      labels[#labels + 1] = (key and keys.display(keys.raw(key)) .. " " or "")
+        .. name
+        .. ":"
+        .. (shown[name] and "on" or "off")
+    end
+    return table.concat(labels, " · ") .. " · " .. origin.mode
   end
-  if scope ~= "effective" then
-    assert(scope == "global" or scope == "buffer", "keymap-tools: invalid picker scope")
-    items = vim.tbl_filter(function(item)
-      return item.scope == scope
-    end, items)
-  end
-  if #items == 0 then
-    vim.notify("keymap-tools: no mappings for this buffer and mode", vim.log.levels.INFO)
-    return false
-  end
+  -- Keep the window open even with both scopes hidden, so either can be enabled.
+  local items = collect()
   local insert_cursor = origin.mode == "i" and api.nvim_win_get_cursor(origin.win) or nil
   M.dispose()
   local version = generation
@@ -85,14 +102,7 @@ function M.open(opts)
     if not api.nvim_win_is_valid(origin.win) or api.nvim_win_get_buf(origin.win) ~= origin.buf then
       return false, "Source window changed; reopen the keymap picker"
     end
-    for _, current in
-      ipairs(
-        query.collect(
-          vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" }, include_hidden = true }),
-          config
-        )
-      )
-    do
+    for _, current in ipairs(collect(true)) do
       if current.keys == item.keys and maps.same(item, current) then
         return true
       end
@@ -126,16 +136,54 @@ function M.open(opts)
     end
     return formatted[item]
   end
+  local function toggle_scope(picker, name)
+    if picker.closed then
+      return
+    end
+    local selected = picker:current()
+    local offset = picker.offset
+    shown[name] = not shown[name]
+    items = collect()
+    rebuild()
+    picker.opts.prompt = prompt()
+    if active and active.picker == picker then
+      active.items = items
+    end
+    picker:set_items(items)
+    if selected then
+      for index, item in ipairs(items) do
+        if item.keys == selected.keys and item.scope == selected.scope then
+          picker:restore({ index = index, marks = {}, offset = offset })
+          break
+        end
+      end
+    end
+  end
+  picker_opts.actions = vim.tbl_extend("force", {}, picker_opts.actions or {}, {
+    toggle_buffer = function(picker)
+      toggle_scope(picker, "buffer")
+    end,
+    toggle_global = function(picker)
+      toggle_scope(picker, "global")
+    end,
+  })
+  picker_opts.action_descriptions = vim.tbl_extend("force", {}, picker_opts.action_descriptions or {}, {
+    toggle_buffer = "Show or hide buffer keymaps",
+    toggle_global = "Show or hide global keymaps",
+  })
   local restore_allowed = true
   local on_close = opts.on_close or config.picker.on_close
   local picker = selection.select(
     items,
-    vim.tbl_deep_extend("force", {}, config.picker, opts, {
-      prompt = "Buffer keymaps · " .. origin.mode,
+    vim.tbl_deep_extend("force", {}, picker_opts, {
+      prompt = prompt(),
       resume = false,
       nested = parent ~= nil,
       preview = { enabled = false },
       item_icons = false,
+      match_priority = function(item)
+        return item.scope == "buffer" and 0 or 1
+      end,
       format_item = function(item)
         return presentation(item).text
       end,
@@ -194,6 +242,25 @@ function M.open(opts)
     end
   )
   if type(picker) == "table" and not picker.closed then
+    -- selection-tools also uses Alt+g for file globs. This modal action owns
+    -- its configured keys regardless of the base picker's installation order.
+    if picker.input_buf then
+      for _, buf in ipairs({ picker.input_buf, picker.list_buf, picker.preview_buf }) do
+        for _, name in ipairs({ "buffer", "global" }) do
+          local target = name
+          for _, key in ipairs(toggle_keys[name]) do
+            vim.keymap.set({ "n", "i" }, key, function()
+              toggle_scope(picker, target)
+            end, {
+              buffer = buf,
+              nowait = true,
+              silent = true,
+              desc = "[Keymaps] Show or hide " .. name .. " keymaps",
+            })
+          end
+        end
+      end
+    end
     active = { picker = picker, items = items, rebuild = rebuild }
   end
   return picker

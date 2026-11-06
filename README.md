@@ -519,10 +519,14 @@ The picker uses the same query model but includes only actual, effective
 mappings. Its optional `global`/`buffer` scope filters that effective set; it
 never offers a shadowed global mapping that would replay a different local map.
 Normal, Visual and Insert pickers execute in their original mode.
-Inside selection-tools windows the default is `scope = "buffer"`, so unrelated
-global editing/completion mappings are omitted. Picker mappings and other custom
-buffer-local mappings remain searchable. Ordinary editing buffers default to
-`scope = "effective"`; pass an explicit scope to override either default.
+The default `scope = "effective"` shows both scopes, with buffer-local mappings
+before globals, including filtered search results. `Alt+b` independently shows or
+hides buffer mappings; `Alt+g` does the same for globals. The title displays both
+states, and toggling preserves the query and any still-visible selection. Both
+may be hidden without closing the window. These settings reset on the next open.
+Set `picker.scope = "buffer"` or `"global"` for another initial view. Customize
+`picker.keys.toggle_buffer` / `picker.keys.toggle_global` (lists of keys), or pass
+`scope` / `keys` directly to `pick()`.
 
 ## API change
 
