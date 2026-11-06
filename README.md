@@ -499,10 +499,17 @@ labels belong to registrations. No compatibility aliases are provided.
 
 Run `sh tests/run.sh`. Checks include registration conflicts/cleanup, cross-window
 contexts, read-only toggles and unknown states, query diagnostics, actual
-selection-tools/mini.ai checkouts, and real terminal input for operator, provider
+selection-tools/editing-tools checkouts, and real terminal input for operator, provider
 and picker workflows, plus screencast rendering, input bursts, hint replay,
 timeouts, exclusions and lifecycle cleanup. Set
-`SELECTION_TOOLS_DIR`, `MINI_AI_DIR` or `NVIM_BIN` to override local test paths.
+`SELECTION_TOOLS_DIR`, `EDITING_TOOLS_DIR` or `NVIM_BIN` to override local test paths.
 Python 3, StyLua and the English spelling dictionary are required for the suite.
 When the sibling theme-tools checkout exists, the suite also tests real terminal
 theme/icon switching; set `THEME_TOOLS_DIR` to override its location.
+
+## Command ownership
+
+Commands belong to the plugin; choose global entry keys and short aliases in
+your configuration. Registration reports same-name conflicts without replacing
+user commands. Reconfiguration refreshes only commands still owned by this
+plugin, and cleanup preserves subsequent user replacements.

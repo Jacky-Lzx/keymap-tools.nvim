@@ -3,7 +3,7 @@ if vim.g.loaded_keymap_tools then
 end
 vim.g.loaded_keymap_tools = true
 
-vim.api.nvim_create_user_command("KeymapTools", function(args)
+require("keymap_tools.user_command").create("KeymapTools", function(args)
   local action = args.fargs[1] or "pick"
   if action == "showkeys" then
     local operation = args.fargs[2] or "toggle"

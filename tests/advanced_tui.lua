@@ -184,11 +184,13 @@ local function check()
     return operator_calls == 1
   end, "custom g@ operator")
 
-  -- Use the real installed mini.ai checkout, including its expr/getchar maps.
-  local mini = vim.env.MINI_AI_DIR or vim.fn.stdpath("data") .. "/lazy/mini.ai"
-  assert(vim.fn.isdirectory(mini) == 1, "set MINI_AI_DIR to the real mini.ai checkout")
-  vim.opt.runtimepath:prepend(mini)
-  require("mini.ai").setup({ silent = true })
+  -- Exercise the current editing plugin's unmapped expr/getchar endpoints.
+  local editing = vim.env.EDITING_TOOLS_DIR or vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/editing-tools.nvim"
+  assert(vim.fn.isdirectory(editing) == 1, "set EDITING_TOOLS_DIR to the real editing-tools checkout")
+  vim.opt.runtimepath:prepend(editing)
+  require("editing_tools").setup()
+  vim.keymap.set({ "o", "x" }, "i", "<Plug>(EditingTools-inside)")
+  vim.keymap.set({ "o", "x" }, "a", "<Plug>(EditingTools-around)")
   reset("one (inner words) tail", { 1, 6 })
   send("d")
   hint("Around text object")
@@ -347,7 +349,7 @@ timer:start(
       vim.fn.writefile(
         ok
             and {
-              "PASS operator hints, custom/mini.ai textobjects, counts/registers, dot/undo, change, forced motion, g@, macros, scrolling, register hints in n/i/c, exact/linewise marks and native spelling",
+              "PASS operator hints, custom/editing-tools textobjects, counts/registers, dot/undo, change, forced motion, g@, macros, scrolling, register hints in n/i/c, exact/linewise marks and native spelling",
             }
           or vim.split(
             tostring(err) .. "\nStep: " .. current_step .. "\n" .. debug.traceback(thread),
