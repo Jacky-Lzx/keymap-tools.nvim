@@ -88,6 +88,54 @@ local function check()
   vim.keymap.del("n", "<leader>p", { buffer = true })
   vim.o.timeoutlen = timeoutlen
 
+  -- Only the first visible frame is delayed, even when the rendering module
+  -- was already loaded by an earlier session. Navigation must update at once.
+  local config = require("keymap_tools.config").get()
+  local delay, source = config.hints.delay, api.nvim_get_current_win()
+  config.hints.delay = 600
+  vim.keymap.set("n", "<leader>sxk", "<Nop>", { desc = "Nested timing action" })
+  local timing = tools.register("test-timing", {
+    groups = {
+      { prefix = "<leader>s", label = "Timing subgroup" },
+      { prefix = "<leader>sx", label = "Timing nested subgroup" },
+    },
+  })
+  for _ = 1, 2 do
+    local started = vim.uv.hrtime()
+    send(" ")
+    hint("Timing subgroup")
+    assert((vim.uv.hrtime() - started) / 1e6 >= 600, "new session skipped its initial hint delay")
+    for _, step in ipairs({
+      { "s", "Timing nested subgroup" },
+      { "x", "Nested timing action" },
+      { "\127", "Timing nested subgroup" },
+      { "\127", "Timing subgroup" },
+    }) do
+      started = vim.uv.hrtime()
+      send(step[1])
+      hint(step[2])
+      local elapsed = (vim.uv.hrtime() - started) / 1e6
+      assert(elapsed < 300, "visible hint navigation waited for the initial delay: " .. elapsed .. "ms")
+      assert(api.nvim_get_current_win() == source and keys.mode() == "n", "hint navigation changed focus/mode")
+      vim.cmd.redraw()
+      local pos, visible = vim.fn.win_screenpos(view.win), ""
+      local geometry = api.nvim_win_get_config(view.win)
+      for row = 1, geometry.height do
+        for column = 1, geometry.width do
+          visible = visible .. vim.fn.screenstring(pos[1] + row, pos[2] + column)
+        end
+      end
+      assert(visible:find(step[2], 1, true), "updated hint missing from terminal frame")
+    end
+    send("\27")
+    wait_for(function()
+      return not view.win
+    end, "close timed hint session")
+  end
+  timing:dispose()
+  vim.keymap.del("n", "<leader>sxk")
+  config.hints.delay = delay
+
   local burst = 0
   vim.keymap.set("n", "<leader>sx", function()
     burst = burst + 1

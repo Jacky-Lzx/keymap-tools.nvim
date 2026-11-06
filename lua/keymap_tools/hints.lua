@@ -205,6 +205,7 @@ local function run(state, opts)
   local history = {}
   local expanded = {}
   local changed = true
+  local shown = false
   local started = (vim.uv or vim.loop).hrtime() / 1e6
   local last_size
   while M.session == state do
@@ -249,7 +250,7 @@ local function run(state, opts)
       return
     end
     local size = vim.o.columns .. ":" .. vim.o.lines
-    if elapsed >= (opts.automatic and config.hints.delay or 0) and (changed or last_size ~= size) then
+    if (shown or not opts.automatic or elapsed >= config.hints.delay) and (changed or last_size ~= size) then
       view = view or require("keymap_tools.view")
       view.highlights()
       view.show(
@@ -258,6 +259,7 @@ local function run(state, opts)
         state.mode == "o" and ("o · " .. state.operator) or state.mode,
         config.window
       )
+      shown = shown or view.win ~= nil
       changed, last_size = false, size
     end
     local char = vim.fn.getcharstr(0)

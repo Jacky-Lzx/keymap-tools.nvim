@@ -268,6 +268,10 @@ showkeys                                    Optional recent-key screencast.
 presets                                     true/false or individual catalog flags.
 providers                                   registers/marks/spelling options.
 
+hints.delay is in milliseconds and applies until the first hint window appears.
+Once visible, subgroup navigation and <BS> update immediately. Closing the
+window and starting a new automatic hint session applies the delay again.
+
 Preset flags: motions/navigation/windows/folds/textobjects. Provider options
 accept false or {enabled=false}; spelling.suggestions is 1..62 (default 20).
 No add()/get_keymaps() or positional registration API remains. Use register(),

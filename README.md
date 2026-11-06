@@ -78,6 +78,8 @@ initialize hints or rendering, and the hint window module loads on first display
   commands such as `1z=` retain native behavior.
 - `<C-d>` / `<C-u>` pages long hint lists, `<BS>` goes up, and `<Esc>` / `<C-c>`
   cancels. An actual candidate using a scrolling key takes precedence.
+- `hints.delay` applies until the first hint window appears. Once visible,
+  entering a subgroup or going back updates it immediately.
 - `:KeymapTools` / `:KeymapTools pick` opens the executable mapping picker;
   `show`, `hide`, and `refresh` are also available as command arguments.
 - `:KeymapTools showkeys` toggles the recent-key screencast (off by default).
@@ -95,7 +97,7 @@ require("keymap_tools").setup({
   defer = true, -- Defer startup initialization until VimEnter
   hints = {
     enabled = true, -- Automatic hints only; explicit show()/pick() remain usable
-    delay = 200,
+    delay = 200, -- Initial display only, in milliseconds
     operators = true, -- Start hints on entering operator-pending mode
     triggers = {
       { prefix = "<leader>", modes = { "n", "x", "o" } },
