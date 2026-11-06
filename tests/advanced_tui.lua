@@ -259,13 +259,13 @@ local function check()
     return operator_calls == 1
   end, "custom g@ operator")
 
-  -- Exercise the current editing plugin's unmapped expr/getchar endpoints.
-  local editing = vim.env.EDITING_TOOLS_DIR or vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/editing-tools.nvim"
-  assert(vim.fn.isdirectory(editing) == 1, "set EDITING_TOOLS_DIR to the real editing-tools checkout")
-  vim.opt.runtimepath:prepend(editing)
-  require("editing_tools").setup()
-  vim.keymap.set({ "o", "x" }, "i", "<Plug>(EditingTools-inside)")
-  vim.keymap.set({ "o", "x" }, "a", "<Plug>(EditingTools-around)")
+  -- Exercise the motion plugin's unmapped expr/getchar endpoints.
+  local motion = vim.env.MOTION_TOOLS_DIR or vim.fn.fnamemodify(vim.fn.getcwd(), ":h") .. "/motion-tools.nvim"
+  assert(vim.fn.isdirectory(motion) == 1, "set MOTION_TOOLS_DIR to the real motion-tools checkout")
+  vim.opt.runtimepath:prepend(motion)
+  require("motion_tools").setup()
+  vim.keymap.set({ "o", "x" }, "i", "<Plug>(MotionTools-inside)")
+  vim.keymap.set({ "o", "x" }, "a", "<Plug>(MotionTools-around)")
   reset("one (inner words) tail", { 1, 6 })
   send("d")
   hint("Around text object")
@@ -424,7 +424,7 @@ timer:start(
       vim.fn.writefile(
         ok
             and {
-              "PASS operator hints, custom/editing-tools textobjects, counts/registers, dot/undo, change, forced motion, g@, macros, scrolling, register hints in n/i/c, exact/linewise marks and native spelling",
+              "PASS operator hints, custom/motion-tools textobjects, counts/registers, dot/undo, change, forced motion, g@, macros, scrolling, register hints in n/i/c, exact/linewise marks and native spelling",
             }
           or vim.split(
             tostring(err) .. "\nStep: " .. current_step .. "\n" .. debug.traceback(thread),
