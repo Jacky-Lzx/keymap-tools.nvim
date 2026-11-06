@@ -34,6 +34,39 @@ assert(sets == 0 and deletes == 0, "unchanged triggers must not be reinstalled")
 assert(reads <= 6, "ownership must be read once per buffer/mode")
 assert(callback(" ") == leader and callback("g") == g)
 
+-- Newly added local descendants can precede a nowait trigger. Restore only the
+-- affected trigger, including when an identical descendant is deleted/readded.
+local function priority_refresh(expected)
+  sets, deletes = 0, 0
+  vim.keymap.set = function(...)
+    sets = sets + 1
+    return set(...)
+  end
+  vim.keymap.del = function(...)
+    deletes = deletes + 1
+    return del(...)
+  end
+  hints.refresh()
+  vim.keymap.set, vim.keymap.del = set, del
+  assert(sets == expected and deletes == expected, "refresh must only move shadowed triggers")
+  assert(callback(" ") == leader and callback("g") == g, "priority repair must reuse callbacks")
+end
+local function later() end
+for _ = 1, 2 do
+  vim.keymap.set("n", " ab", later, { buffer = true })
+  priority_refresh(1)
+  local local_map = vim.fn.maparg(" ab", "n", false, true)
+  assert(local_map.callback == later and local_map.buffer == 1, "priority repair changed the descendant")
+  priority_refresh(0)
+  vim.keymap.del("n", " ab", { buffer = true })
+end
+vim.cmd("nnoremap <buffer> gZ <Nop>")
+priority_refresh(1)
+priority_refresh(0)
+vim.keymap.del("n", "gZ", { buffer = true })
+vim.keymap.set("n", "unrelated", "<Nop>", { buffer = true })
+priority_refresh(0)
+
 -- A new exact global mapping must displace our existing local prefix trigger.
 local user = function() end
 vim.keymap.set("n", " ", user)
@@ -94,4 +127,6 @@ for _, map in ipairs(api.nvim_buf_get_keymap(first, "n")) do
 end
 tools.setup({ hints = { enabled = false } })
 assert(#hints.triggers == 0 and not callback("g"))
-print("PASS trigger reuse, grouped ownership checks, exact-map displacement, event coalescing and cancellation")
+print(
+  "PASS trigger reuse and priority, grouped ownership checks, exact-map displacement, event coalescing and cancellation"
+)

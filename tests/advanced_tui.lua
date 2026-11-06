@@ -61,6 +61,33 @@ local function check()
   hints.refresh = refresh
   assert(idle_calls < 24, "SafeState refreshes kept the idle event loop busy: " .. idle_calls)
 
+  -- FileType/LspAttach can add local mappings after the prefix trigger. A
+  -- nowait mapping only bypasses timeoutlen when it precedes partial matches.
+  local timeoutlen = vim.o.timeoutlen
+  vim.o.timeoutlen = 1200
+  local local_calls = 0
+  local function local_action()
+    local_calls = local_calls + 1
+  end
+  for round = 1, 2 do
+    if round == 2 then
+      vim.keymap.del("n", "<leader>p", { buffer = true })
+    end
+    vim.keymap.set("n", "<leader>p", local_action, { buffer = true, desc = "Late local action" })
+    api.nvim_exec_autocmds("LspAttach", { buffer = 0, group = "KeymapToolsHints" })
+    local started = vim.uv.hrtime()
+    send(" ")
+    hint("Late local action")
+    local elapsed = (vim.uv.hrtime() - started) / 1e6
+    assert(elapsed < 600, "late buffer mapping delayed prefix hints until timeoutlen: " .. elapsed .. "ms")
+    send("p")
+    wait_for(function()
+      return local_calls == round and not view.win
+    end, "execute late local action " .. round)
+  end
+  vim.keymap.del("n", "<leader>p", { buffer = true })
+  vim.o.timeoutlen = timeoutlen
+
   local burst = 0
   vim.keymap.set("n", "<leader>sx", function()
     burst = burst + 1

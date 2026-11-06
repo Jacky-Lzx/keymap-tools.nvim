@@ -18,11 +18,11 @@ local function installed(triggers, read_buffer_maps)
       local buffer = snapshots[trigger.buf] or {}
       snapshots[trigger.buf] = buffer
       if not buffer[trigger.mode] then
-        local callbacks = {}
-        for _, map in ipairs(read_buffer_maps(trigger.buf, trigger.mode)) do
-          callbacks[keys.raw(map.lhs)] = map.callback
+        local mappings = {}
+        for index, map in ipairs(read_buffer_maps(trigger.buf, trigger.mode)) do
+          mappings[keys.raw(map.lhs)] = { callback = map.callback, index = index }
         end
-        buffer[trigger.mode] = callbacks
+        buffer[trigger.mode] = mappings
       end
     end
   end
@@ -31,7 +31,19 @@ end
 
 local function owned(trigger, snapshots)
   local buffer = snapshots[trigger.buf]
-  return buffer and buffer[trigger.mode][trigger.raw] == trigger.callback
+  local mapping = buffer and buffer[trigger.mode][trigger.raw]
+  return mapping and mapping.callback == trigger.callback
+end
+
+local function shadowed(trigger, snapshots)
+  local mappings = snapshots[trigger.buf][trigger.mode]
+  local index = mappings[trigger.raw].index
+  for raw, mapping in pairs(mappings) do
+    if mapping.index < index and #raw > #trigger.raw and raw:sub(1, #trigger.raw) == trigger.raw then
+      return true
+    end
+  end
+  return false
 end
 
 local function remove(trigger, snapshots)
@@ -124,8 +136,16 @@ function M.refresh()
   for _, candidate in ipairs(desired) do
     local id = candidate.mode .. "\0" .. candidate.raw
     local trigger = reusable[id]
+    local needs_install = not trigger
     if trigger then
       retained[trigger] = true
+      if shadowed(trigger, snapshots) then
+        -- nowait only bypasses partial matches found after the exact mapping.
+        -- Redefining in place retains its order; delete it first to move ahead
+        -- of local mappings added later by FileType/LspAttach handlers.
+        vim.keymap.del(trigger.mode, trigger.lhs, { buffer = trigger.buf })
+        needs_install = true
+      end
     else
       trigger = candidate
       local lhs, mode = trigger.lhs, trigger.mode
@@ -133,7 +153,9 @@ function M.refresh()
         M.show({ prefix = lhs, mode = mode, automatic = true })
       end
       maps.internal[trigger.callback] = true
-      vim.keymap.set(mode, lhs, trigger.callback, {
+    end
+    if needs_install then
+      vim.keymap.set(trigger.mode, trigger.lhs, trigger.callback, {
         buffer = buf,
         nowait = true,
         silent = true,
