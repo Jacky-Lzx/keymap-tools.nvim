@@ -90,6 +90,31 @@ callbacks, expressions and `<Plug>` chains execute by replaying their original
 keys. The picker restores the source window/Visual range and rejects a removed
 or replaced mapping before execution.
 
+## Lifecycle
+
+`setup(nil)` and `setup({})` start from fresh defaults. Options are copied before
+use; dictionaries merge recursively and lists replace defaults, including empty
+lists. Validation completes before any working configuration, listener or view
+is replaced. Repeated setup does not accumulate triggers, timers or observers.
+
+```lua
+local tools = require("keymap_tools")
+tools.disable() -- Release runtime resources; retain options and live screencast enablement.
+tools.enable()  -- Restore that configuration, or defaults before the first setup.
+print(tools.is_enabled()) -- Includes a deferred setup waiting for VimEnter.
+tools.dispose() -- Release resources and forget configuration; safe when cold/repeated.
+```
+
+Both disable and dispose close owned hints/pickers/screencasts, detach automatic
+prefix mappings and listeners, cancel pending startup/refresh/replay work, and
+unsubscribe from themes. A pending Visual/operator hint is cancelled without
+editing source text. User replacements and adopted windows/buffers are preserved.
+External `register()`/`register_toggle()` handles and user mappings remain owned
+by their callers; release those handles explicitly when their feature unloads.
+The static `:KeymapTools` command remains available. Explicit `show()`, `pick()`
+or `refresh()` enables the plugin again; `list()` and metadata registration never
+activate it. After disposal, explicit use starts from defaults.
+
 ## Configuration
 
 ```lua

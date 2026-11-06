@@ -6,13 +6,22 @@ local ns = api.nvim_create_namespace("keymap_tools.showkeys")
 local enabled, config, timer, group, queued = false, nil, nil, nil, nil
 local history, ignored, generation = {}, "", 0
 
+local function owned_buffer(buf, tick)
+  return buf
+    and api.nvim_buf_is_valid(buf)
+    and vim.bo[buf].buftype == "nofile"
+    and vim.bo[buf].filetype == "keymap-tools-showkeys"
+    and api.nvim_buf_get_changedtick(buf) == tick
+end
+
 local function close_window()
-  local win, buf = M.win, M.buf
-  M.win, M.buf = nil, nil
-  if win and api.nvim_win_is_valid(win) then
+  local win, buf, tick = M.win, M.buf, M.tick
+  M.win, M.buf, M.tick = nil, nil, nil
+  local owned = owned_buffer(buf, tick)
+  if owned and win and api.nvim_win_is_valid(win) and api.nvim_win_get_buf(win) == buf then
     api.nvim_win_close(win, true)
   end
-  if buf and api.nvim_buf_is_valid(buf) then
+  if owned and api.nvim_buf_is_valid(buf) then
     api.nvim_buf_delete(buf, { force = true })
   end
 end
@@ -46,6 +55,16 @@ function M.redraw()
   if not enabled then
     return
   end
+  if
+    M.buf
+    and (
+      not owned_buffer(M.buf, M.tick)
+      or M.win and vim.api.nvim_win_is_valid(M.win) and vim.api.nvim_win_get_buf(M.win) ~= M.buf
+    )
+  then
+    close_window()
+  end
+
   if #history == 0 then
     close_window()
     return
@@ -99,6 +118,7 @@ function M.redraw()
   end
   vim.bo[M.buf].modifiable = true
   api.nvim_buf_set_lines(M.buf, 0, -1, false, { line })
+  M.tick = api.nvim_buf_get_changedtick(M.buf)
   vim.bo[M.buf].modifiable = false
   api.nvim_buf_clear_namespace(M.buf, ns, 0, -1)
   local offset = 0
@@ -288,6 +308,11 @@ function M.setup(opts)
   if opts.enabled then
     M.enable()
   end
+end
+
+function M.dispose()
+  M.disable()
+  config = nil
 end
 
 return M

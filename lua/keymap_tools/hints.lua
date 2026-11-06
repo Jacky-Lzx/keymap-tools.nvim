@@ -6,7 +6,8 @@ local registry = require("keymap_tools.registry")
 local context = require("keymap_tools.context")
 local providers = require("keymap_tools.providers")
 local M = { triggers = {}, suspended = false }
-local config
+local config, unsubscribe
+local generation = 0
 local pending
 
 -- Read each buffer/mode once, and never delete a mapping another owner replaced.
@@ -20,7 +21,7 @@ local function installed(triggers, read_buffer_maps)
       if not buffer[trigger.mode] then
         local mappings = {}
         for index, map in ipairs(read_buffer_maps(trigger.buf, trigger.mode)) do
-          mappings[keys.raw(map.lhs)] = { callback = map.callback, index = index }
+          mappings[keys.raw(map.lhs)] = { mapping = map, index = index }
         end
         buffer[trigger.mode] = mappings
       end
@@ -32,7 +33,7 @@ end
 local function owned(trigger, snapshots)
   local buffer = snapshots[trigger.buf]
   local mapping = buffer and buffer[trigger.mode][trigger.raw]
-  return mapping and mapping.callback == trigger.callback
+  return mapping and vim.deep_equal(mapping.mapping, trigger.mapping)
 end
 
 local function shadowed(trigger, snapshots)
@@ -63,7 +64,7 @@ function M.detach()
 end
 
 function M.request_refresh()
-  if pending then
+  if not config or pending then
     return
   end
   local request = {}
@@ -100,8 +101,12 @@ function M.refresh()
   local previous, snapshots = M.triggers, installed(M.triggers, buffer_maps)
   local reusable, retained, desired = {}, {}, {}
   for _, trigger in ipairs(previous) do
-    if trigger.buf == buf and owned(trigger, snapshots) then
-      reusable[trigger.mode .. "\0" .. trigger.raw] = trigger
+    if owned(trigger, snapshots) then
+      if trigger.buf == buf then
+        reusable[trigger.mode .. "\0" .. trigger.raw] = trigger
+      end
+    else
+      maps.internal[trigger.callback] = nil
     end
   end
   local modes = { "n", "x", "o", "i", "c" }
@@ -133,6 +138,7 @@ function M.refresh()
     end
   end
   M.triggers = {}
+  local fresh = {}
   for _, candidate in ipairs(desired) do
     local id = candidate.mode .. "\0" .. candidate.raw
     local trigger = reusable[id]
@@ -149,12 +155,17 @@ function M.refresh()
     else
       trigger = candidate
       local lhs, mode = trigger.lhs, trigger.mode
+      local version = generation
       trigger.callback = function()
+        if version ~= generation or not config then
+          return
+        end
         M.show({ prefix = lhs, mode = mode, automatic = true })
       end
       maps.internal[trigger.callback] = true
     end
     if needs_install then
+      fresh[#fresh + 1] = trigger
       vim.keymap.set(trigger.mode, trigger.lhs, trigger.callback, {
         buffer = buf,
         nowait = true,
@@ -168,6 +179,10 @@ function M.refresh()
     if not retained[trigger] then
       remove(trigger, snapshots)
     end
+  end
+  local created = installed(fresh)
+  for _, trigger in ipairs(fresh) do
+    trigger.mapping = created[trigger.buf][trigger.mode][trigger.raw].mapping
   end
 end
 
@@ -318,7 +333,9 @@ function M.show(opts)
   end
   M.session = state
   local ok, err = pcall(run, state, opts)
-  M.hide()
+  if M.session == state then
+    M.hide()
+  end
   if not ok and (mode == "o" or mode == "x") then
     api.nvim_feedkeys(keys.raw("<Esc>"), "n", false)
   end
@@ -329,8 +346,7 @@ function M.show(opts)
 end
 
 function M.setup(opts)
-  M.hide()
-  M.detach()
+  M.dispose()
   config = opts
   M.suspended = false
   local group = api.nvim_create_augroup("KeymapToolsHints", { clear = true })
@@ -380,8 +396,24 @@ function M.setup(opts)
       end
     end,
   })
-  registry.on_change(M.request_refresh)
+  unsubscribe = registry.on_change(M.request_refresh)
   M.refresh()
+end
+
+function M.dispose()
+  generation = generation + 1
+  local state = M.session
+  M.hide()
+  M.detach()
+  config, M.suspended = nil, false
+  if unsubscribe then
+    unsubscribe()
+    unsubscribe = nil
+  end
+  pcall(api.nvim_del_augroup_by_name, "KeymapToolsHints")
+  if state and (state.mode == "o" or state.mode == "x") then
+    api.nvim_feedkeys(keys.raw("<Esc>"), "n", false)
+  end
 end
 
 return M

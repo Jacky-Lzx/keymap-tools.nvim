@@ -1,6 +1,6 @@
 local keys = require("keymap_tools.keys")
 local M = { revision = 0 }
-local records, serial, listener, scheduled = {}, 0, nil, false
+local records, serial, listener, scheduled = {}, 0, nil, nil
 local Handle = {}
 Handle.__index = Handle
 local cleanup_installed = false
@@ -8,18 +8,29 @@ local cleanup_installed = false
 local function changed()
   M.revision = M.revision + 1
   if listener and not scheduled then
-    scheduled = true
+    local request = { listener = listener }
+    scheduled = request
     vim.schedule(function()
-      scheduled = false
-      if listener then
-        listener()
+      if scheduled ~= request then
+        return
+      end
+      scheduled = nil
+      if listener == request.listener then
+        listener.callback()
       end
     end)
   end
 end
 
 function M.on_change(callback)
-  listener = callback
+  assert(callback == nil or type(callback) == "function", "registry listener must be a function")
+  local entry = callback and { callback = callback } or nil
+  listener, scheduled = entry, nil
+  return function()
+    if listener == entry then
+      listener, scheduled = nil, nil
+    end
+  end
 end
 
 local function fields(value, allowed, name)

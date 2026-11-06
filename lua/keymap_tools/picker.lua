@@ -5,6 +5,7 @@ local query = require("keymap_tools.query")
 local context = require("keymap_tools.context")
 local M = {}
 local active
+local generation = 0
 
 function M.redraw()
   if not active or active.picker.closed then
@@ -59,6 +60,8 @@ function M.open(opts)
     vim.notify("keymap-tools: no mappings for this buffer and mode", vim.log.levels.INFO)
     return false
   end
+  M.dispose()
+  local version = generation
   if keys.mode() == "x" then
     -- Save '< and '> before the picker changes focus and enters Insert mode.
     vim.cmd.normal({ args = { keys.raw("<Esc>") }, bang = true })
@@ -138,6 +141,9 @@ function M.open(opts)
       -- selection-tools closes its Insert-mode windows before this callback.
       -- Defer once more so stopinsert has taken effect before replaying keys.
       vim.schedule(function()
+        if version ~= generation then
+          return
+        end
         if
           not api.nvim_win_is_valid(origin.win)
           or api.nvim_win_get_buf(origin.win) ~= origin.buf
@@ -166,6 +172,15 @@ function M.open(opts)
     active = { picker = picker, items = items, rebuild = rebuild }
   end
   return picker
+end
+
+function M.dispose()
+  generation = generation + 1
+  local session = active
+  active = nil
+  if session and not session.picker.closed then
+    session.picker:close(nil, nil, nil, { reason = "dispose" })
+  end
 end
 
 return M

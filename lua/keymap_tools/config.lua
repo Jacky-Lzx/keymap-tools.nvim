@@ -43,12 +43,44 @@ function M.get()
   return current
 end
 
+local function border(value, name)
+  if type(value) == "string" then
+    assert(
+      vim.tbl_contains({ "none", "", "single", "double", "rounded", "solid", "shadow" }, value),
+      "keymap-tools: invalid " .. name
+    )
+    return
+  end
+  assert(
+    type(value) == "table" and vim.islist(value) and vim.tbl_contains({ 1, 2, 4, 8 }, #value),
+    "keymap-tools: invalid " .. name
+  )
+  for _, entry in ipairs(value) do
+    local char = entry
+    if type(entry) == "table" then
+      assert(
+        vim.islist(entry) and #entry == 2 and type(entry[2]) == "string",
+        "keymap-tools: invalid " .. name .. " highlight"
+      )
+      char = entry[1]
+    end
+    assert(
+      type(char) == "string" and not char:find("[%c]") and vim.fn.strdisplaywidth(char) <= 1,
+      "keymap-tools: border characters must occupy at most one cell"
+    )
+  end
+end
+
 function M.normalize(opts)
-  opts = opts or {}
+  assert(opts == nil or type(opts) == "table", "keymap-tools: setup expects a table")
+  opts = vim.deepcopy(opts or {})
   for key in pairs(opts) do
     assert(defaults[key] ~= nil, "keymap-tools: unknown setup field: " .. tostring(key))
   end
   local result = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
+  for _, name in ipairs({ "hints", "window", "providers" }) do
+    assert(type(result[name]) == "table", "keymap-tools: " .. name .. " must be a table")
+  end
   assert(type(result.icons) == "table", "keymap-tools: icons must be a table")
   for field in pairs(result.icons) do
     assert(defaults.icons[field] ~= nil, "keymap-tools: unknown icons field: " .. tostring(field))
@@ -125,11 +157,7 @@ function M.normalize(opts)
       and showkeys.winopts.zindex < math.huge,
     "keymap-tools: showkeys zindex must be a positive integer"
   )
-  assert(
-    type(showkeys.winopts.border) == "table"
-      or vim.tbl_contains({ "none", "", "single", "double", "rounded", "solid", "shadow" }, showkeys.winopts.border),
-    "keymap-tools: invalid showkeys border"
-  )
+  border(showkeys.winopts.border, "showkeys.winopts.border")
   assert(type(result.defer) == "boolean", "keymap-tools: defer must be boolean")
   if opts.hints and opts.hints.triggers ~= nil then
     result.hints.triggers = vim.deepcopy(opts.hints.triggers)
@@ -141,11 +169,18 @@ function M.normalize(opts)
     type(result.hints.enabled) == "boolean" and type(result.hints.operators) == "boolean",
     "keymap-tools: invalid hints enabled/operators"
   )
-  assert(type(result.hints.delay) == "number" and result.hints.delay >= 0, "keymap-tools: delay must be nonnegative")
+  assert(
+    type(result.hints.delay) == "number" and result.hints.delay >= 0 and result.hints.delay < math.huge,
+    "keymap-tools: delay must be nonnegative"
+  )
   assert(vim.islist(result.hints.triggers), "keymap-tools: hints.triggers must be a list")
   for _, trigger in ipairs(result.hints.triggers) do
     assert(
-      type(trigger.prefix) == "string" and #trigger.prefix > 0 and vim.islist(trigger.modes) and #trigger.modes > 0,
+      type(trigger) == "table"
+        and type(trigger.prefix) == "string"
+        and #trigger.prefix > 0
+        and vim.islist(trigger.modes)
+        and #trigger.modes > 0,
       "keymap-tools: each trigger requires prefix and modes"
     )
     for field in pairs(trigger) do
@@ -161,10 +196,11 @@ function M.normalize(opts)
   for _, field in ipairs({ "width", "height" }) do
     local value = result.window[field]
     assert(
-      type(value) == "number" and value >= 1 and value == math.floor(value),
+      type(value) == "number" and value >= 1 and value < math.huge and value == math.floor(value),
       "keymap-tools: window dimensions must be positive integers"
     )
   end
+  border(result.window.border, "window.border")
   assert(result.window.columns == 1 or result.window.columns == 2, "keymap-tools: window.columns must be 1 or 2")
   assert(
     type(result.picker) == "table" and result.picker.key == nil,

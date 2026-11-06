@@ -21,14 +21,24 @@ local function footer_padding(border, width)
   return { string.rep(char, width), hl }
 end
 
+local function owned_buffer(buf, tick)
+  return buf
+    and vim.api.nvim_buf_is_valid(buf)
+    and vim.bo[buf].buftype == "nofile"
+    and vim.bo[buf].filetype == "keymap-tools"
+    and vim.api.nvim_buf_get_changedtick(buf) == tick
+end
+
 function M.hide()
-  if M.win and vim.api.nvim_win_is_valid(M.win) then
-    vim.api.nvim_win_close(M.win, true)
+  local win, buf, tick = M.win, M.buf, M.tick
+  M.win, M.buf, M.tick = nil, nil, nil
+  local owned = owned_buffer(buf, tick)
+  if owned and win and vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+    vim.api.nvim_win_close(win, true)
   end
-  if M.buf and vim.api.nvim_buf_is_valid(M.buf) then
-    vim.api.nvim_buf_delete(M.buf, { force = true })
+  if owned and vim.api.nvim_buf_is_valid(buf) then
+    vim.api.nvim_buf_delete(buf, { force = true })
   end
-  M.win, M.buf = nil, nil
   M.prefix, M.offset, M.frame = nil, 0, nil
   local showkeys = package.loaded["keymap_tools.showkeys"]
   if showkeys then
@@ -48,6 +58,15 @@ function M.redraw()
 end
 
 function M.show(children, prefix, mode, config)
+  if
+    M.buf
+    and (
+      not owned_buffer(M.buf, M.tick)
+      or M.win and vim.api.nvim_win_is_valid(M.win) and vim.api.nvim_win_get_buf(M.win) ~= M.buf
+    )
+  then
+    M.hide()
+  end
   if #children == 0 then
     M.hide()
     return
@@ -131,6 +150,7 @@ function M.show(children, prefix, mode, config)
   end
   vim.bo[M.buf].modifiable = true
   vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, lines)
+  M.tick = vim.api.nvim_buf_get_changedtick(M.buf)
   vim.bo[M.buf].modifiable = false
   vim.api.nvim_buf_clear_namespace(M.buf, ns, 0, -1)
   for _, span in ipairs(spans) do

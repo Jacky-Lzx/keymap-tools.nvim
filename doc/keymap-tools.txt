@@ -33,6 +33,31 @@ separately: only pick() needs it, so hints do not require an eager dependency.
 register() loads metadata storage only; list() does not initialize the hint engine
 or UI. Hint rendering loads on first display.
 
+LIFECYCLE                                               *keymap-tools-lifecycle*
+
+setup(nil)/setup({}) use fresh defaults. Caller tables are copied; dictionary
+fields merge and lists replace defaults, including empty lists. Invalid options
+are rejected before changing live handlers, mappings, configuration or views.
+Repeating setup does not accumulate registrations.
+>
+  tools.disable()     -- Release runtime resources, retain options/live showkeys state.
+  tools.enable()      -- Restore retained setup, or use defaults.
+  tools.is_enabled()  -- True after setup, including deferred startup.
+  tools.dispose()     -- Release runtime resources and forget configuration.
+<
+Disable/dispose close owned hints, keymap pickers and screencasts; remove owned
+prefix mappings, callbacks and timers; unsubscribe from themes; and invalidate
+queued startup, refresh and mapping replay. A pending Visual/operator hint is
+cancelled without changing source text. User replacements and adopted windows
+or buffers survive. Both operations are safe when cold or repeated.
+
+External registration handles, toggle actions, and user mappings survive.
+Their owners must dispose metadata handles explicitly. The static :KeymapTools
+command remains available; show/pick/refresh explicitly enable the plugin again.
+After dispose, explicit use starts from defaults. list/register/register_toggle
+do not activate hints. showkeys.is_enabled() reports its independent listener;
+tools.is_enabled() reports the overall setup lifetime.
+
 USAGE                                                   *keymap-tools-usage*
 
 Pause after a prefix to see next keys; after d/c/y/gU/g@ for motions/textobjects.
