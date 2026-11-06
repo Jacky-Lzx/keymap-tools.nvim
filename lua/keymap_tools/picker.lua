@@ -34,8 +34,8 @@ function M.open(opts)
   if origin.win ~= api.nvim_get_current_win() then
     return false
   end
-  if origin.mode ~= "n" and origin.mode ~= "x" then
-    vim.notify("keymap-tools: open the picker from Normal or Visual mode", vim.log.levels.WARN)
+  if origin.mode ~= "n" and origin.mode ~= "x" and origin.mode ~= "i" then
+    vim.notify("keymap-tools: open the picker from Normal, Visual or Insert mode", vim.log.levels.WARN)
     return false
   end
   local config = require("keymap_tools.config").get()
@@ -60,6 +60,7 @@ function M.open(opts)
     vim.notify("keymap-tools: no mappings for this buffer and mode", vim.log.levels.INFO)
     return false
   end
+  local insert_cursor = origin.mode == "i" and api.nvim_win_get_cursor(origin.win) or nil
   M.dispose()
   local version = generation
   if keys.mode() == "x" then
@@ -161,6 +162,13 @@ function M.open(opts)
         api.nvim_set_current_win(origin.win)
         if origin.mode == "x" then
           vim.cmd.normal({ args = { "gv" }, bang = true })
+        elseif insert_cursor then
+          -- Closing the input window leaves Normal mode and may shift the
+          -- source cursor left. Restore the original insertion byte position;
+          -- startinsert! is needed at EOL, where Normal mode clamps the column.
+          api.nvim_win_set_cursor(origin.win, insert_cursor)
+          local line = api.nvim_buf_get_lines(origin.buf, insert_cursor[1] - 1, insert_cursor[1], false)[1]
+          vim.cmd.startinsert({ bang = insert_cursor[2] >= #line })
         end
         if item then
           require("keymap_tools.hints").replay(item.keys)

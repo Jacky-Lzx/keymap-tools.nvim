@@ -33,6 +33,8 @@ Requires Neovim 0.10+. selection-tools.nvim is needed only for `pick()`.
         { prefix = "<leader>g", label = "Git / LSP" },
       },
     })
+    vim.keymap.set({ "n", "x", "i" }, "<C-/>", keymaps.pick,
+      { desc = "Choose and execute buffer keymap" })
     vim.keymap.set({ "n", "x" }, "<leader>?", keymaps.pick,
       { desc = "Choose and execute buffer keymap" })
   end,
@@ -87,8 +89,11 @@ initialize hints or rendering, and the hint window module loads on first display
 Existing exact user mappings are preserved. Unknown combinations replay normally.
 Macros and rapid operator input retain Neovim's ordinary input path. Mapping
 callbacks, expressions and `<Plug>` chains execute by replaying their original
-keys. The picker restores the source window/Visual range and rejects a removed
-or replaced mapping before execution.
+keys. The picker supports Normal, Visual and Insert modes, restores the source
+window/Visual range or insertion position, and rejects a removed or replaced
+mapping before execution. Cancelling an Insert picker resumes typing at the
+original position. Completion popups and other transient Insert state are not
+restored.
 
 ## Lifecycle
 
@@ -513,7 +518,7 @@ window; queries can inspect other windows without changing focus.
 The picker uses the same query model but includes only actual, effective
 mappings. Its optional `global`/`buffer` scope filters that effective set; it
 never offers a shadowed global mapping that would replay a different local map.
-Visual and Normal pickers retain their original execution semantics.
+Normal, Visual and Insert pickers execute in their original mode.
 
 ## API change
 

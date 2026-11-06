@@ -77,8 +77,10 @@ are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;
 z= shows spelling suggestions; a numeric prefix such as 1z= keeps native behavior.
 
 The picker searches effective mappings for the current mode/buffer. Type to
-filter, C-n/C-p to navigate, CR to execute, Esc to cancel. The source window and
-Visual range are restored; changed mappings are rejected before replay.
+filter, C-n/C-p to navigate, CR to execute, Esc to cancel. Normal, Visual and
+Insert modes are supported. The source window and Visual range or insertion
+position are restored; changed mappings are rejected before replay. Cancelling an Insert picker resumes
+typing at the original position. Transient completion popup state is not restored.
 
 COMMAND                                                 *:KeymapTools*
 
