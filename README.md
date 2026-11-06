@@ -7,8 +7,9 @@ Hints use two columns by default, filling top to bottom and then left to right.
 Narrow windows automatically fall back to one column.
 Hints and the picker display readable key labels, separators and colored semantic
 icons for every entry, with a `+` marker for groups (inspired by which-key.nvim).
-Read-only toggle registrations supply live descriptions and structured state;
-feature owners keep their mappings and switching logic.
+Read-only toggle registrations supply live descriptions and structured state.
+Explicit toggle actions can also share state inversion, error reporting and
+notifications; feature owners supply state access and install their mappings.
 An optional built-in key screencast displays recently typed keys for recordings
 and demonstrations, without requiring showkeys.
 
@@ -398,6 +399,48 @@ registers `name = toggle.opts.name` and a context-aware getter calling
 `toggle:get()`. For getters that use implicit current-window state, guard
 `ctx.win` and call them with `vim.api.nvim_win_call(ctx.win, ...)`. There is no
 automatic Snacks hook, configuration scan or built-in feature/key assignment.
+
+## Register toggle actions
+
+`register_toggle(source, spec)` registers metadata and returns a callback plus
+the metadata registration handle. Bind the returned callback explicitly:
+
+```lua
+local callback, registration = require("keymap_tools").register_toggle("window.wrap", {
+  keys = "<leader>tw",
+  name = "Wrap",
+  get = function(ctx)
+    if ctx.win then
+      return vim.api.nvim_get_option_value("wrap", { win = ctx.win })
+    end
+  end,
+  set = function(enabled, ctx)
+    vim.api.nvim_set_option_value("wrap", enabled, { win = ctx.win })
+  end,
+})
+vim.keymap.set("n", "<leader>tw", callback, { desc = "Toggle wrap" })
+```
+
+`name` must be a nonempty string. `get(ctx)` returns a boolean or `nil` for an
+unavailable state; `set(enabled, ctx)` applies the requested state. The callback
+reads current state on invocation, calls `set`, then reads back the actual state.
+It returns that final state and sends `Name: Enabled/Disabled` through
+`vim.notify`. Set `notify = false` to suppress successful state messages. Getter
+or setter errors, invalid state and unavailable initial state produce one error
+notification and return `nil`; an unavailable initial state never calls `set`.
+If state becomes unknown after switching, the callback returns `nil` silently.
+
+`keys`, `buf`, `modes`, `priority`, `when`, `hidden` and `icon` follow metadata
+registration rules. Match the actual mapping's buffer and modes. A scoped action
+captures `buf = 0` at registration. Callbacks receive detached source contexts.
+Registration and queries never execute setters, show notifications, install
+mappings, initialize hints or load feature owners. Lazy owners can supply a
+known cold state and load themselves inside `set`.
+
+The second return value manages metadata only; replacing or disposing it does
+not change the callback or remove its mapping. Re-register to change an action's
+getter/setter, and manage the mapping alongside its feature. The existing
+`register(..., { toggles = ... })` remains read-only and rejects setters.
 
 ## Query and display
 

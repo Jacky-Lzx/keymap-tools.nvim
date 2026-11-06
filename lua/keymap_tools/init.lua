@@ -53,6 +53,10 @@ function M.register(source, spec)
   return require("keymap_tools.registry").register(source, spec)
 end
 
+function M.register_toggle(source, spec)
+  return require("keymap_tools.toggle").register(source, spec)
+end
+
 function M.list(opts)
   return require("keymap_tools.query").list(opts)
 end
