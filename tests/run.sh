@@ -25,6 +25,7 @@ done
 python3 tests/tui.py
 python3 tests/advanced_tui.py
 python3 tests/advanced_tui.py tests/insert_picker_tui.lua
+python3 tests/advanced_tui.py tests/nested_picker_tui.lua
 python3 tests/advanced_tui.py tests/showkeys_tui.lua
 python3 tests/advanced_tui.py tests/lifecycle_tui.lua
 if [ -d "${THEME_TOOLS_DIR:-../theme-tools.nvim}" ]; then

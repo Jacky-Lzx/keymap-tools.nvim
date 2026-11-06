@@ -7,6 +7,7 @@ from pathlib import Path
 import pty
 import select
 import shutil
+import signal
 import struct
 import subprocess
 import sys
@@ -37,6 +38,12 @@ with tempfile.TemporaryDirectory(prefix="keymap-advanced-", dir="/tmp") as direc
             file = Path(directory, "stage")
             stage = file.read_text().strip() if file.exists() else ""
             if stage and stage != last_stage:
+                resize = Path(directory, "resize")
+                if resize.exists():
+                    columns = int(resize.read_text())
+                    resize.unlink()
+                    fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 36, columns, 0, 0))
+                    os.kill(process.pid, signal.SIGWINCH)
                 os.write(master, Path(directory, "input").read_bytes())
                 Path(directory, "ack").write_text(stage)
                 last_stage = stage

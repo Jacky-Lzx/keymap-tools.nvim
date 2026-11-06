@@ -38,12 +38,25 @@ function M.open(opts)
     vim.notify("keymap-tools: open the picker from Normal, Visual or Insert mode", vim.log.levels.WARN)
     return false
   end
+  if active and not active.picker.closed and active.picker:owns_window(origin.win) then
+    active.picker:close()
+    return true
+  end
+  local parent = selection.current(origin.win)
   local config = require("keymap_tools.config").get()
   local icons = require("keymap_tools.icons")
   local display = require("keymap_tools.display")
   require("keymap_tools.view").highlights()
   local items =
     query.collect(vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" } }), config)
+  if parent then
+    local local_items, global_items = {}, {}
+    for _, item in ipairs(items) do
+      local target = item.scope == "buffer" and local_items or global_items
+      target[#target + 1] = item
+    end
+    items = vim.list_extend(local_items, global_items)
+  end
   if opts.prefix then
     local prefix = keys.raw(opts.prefix)
     items = vim.tbl_filter(function(item)
@@ -112,12 +125,14 @@ function M.open(opts)
     end
     return formatted[item]
   end
+  local restore_allowed = true
   local on_close = opts.on_close or config.picker.on_close
   local picker = selection.select(
     items,
     vim.tbl_deep_extend("force", {}, config.picker, opts, {
       prompt = "Buffer keymaps · " .. origin.mode,
       resume = false,
+      nested = parent ~= nil,
       preview = { enabled = false },
       item_icons = false,
       format_item = function(item)
@@ -130,6 +145,7 @@ function M.open(opts)
         return valid(ctx.item)
       end,
       on_close = function(closed, outcome)
+        restore_allowed = outcome.reason == "cancel" or outcome.reason == "confirm"
         if active and active.picker == closed then
           active = nil
         end
@@ -142,7 +158,7 @@ function M.open(opts)
       -- selection-tools closes its Insert-mode windows before this callback.
       -- Defer once more so stopinsert has taken effect before replaying keys.
       vim.schedule(function()
-        if version ~= generation then
+        if version ~= generation or not restore_allowed then
           return
         end
         if

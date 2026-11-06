@@ -153,6 +153,9 @@ current()
 local original_selection = package.loaded.selection_tools
 local confirm, session
 package.loaded.selection_tools = {
+  current = function()
+    return nil
+  end,
   select = function(items, opts, on_choice)
     confirm = function()
       on_choice(items[1])
