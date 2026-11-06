@@ -7,6 +7,7 @@ export XDG_STATE_HOME="$test_root/state" XDG_CACHE_HOME="$test_root/cache"
 export NVIM_LOG_FILE="$test_root/nvim.log" PYTHONDONTWRITEBYTECODE=1
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/core.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/layout.lua
+"${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/icons.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/registry.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/query.lua
 "${NVIM_BIN:-nvim}" --headless -n -u NONE -i NONE --noplugin -l tests/toggles.lua
@@ -21,4 +22,7 @@ done
 python3 tests/tui.py
 python3 tests/advanced_tui.py
 python3 tests/advanced_tui.py tests/showkeys_tui.lua
+if [ -d "${THEME_TOOLS_DIR:-../theme-tools.nvim}" ]; then
+  python3 tests/advanced_tui.py tests/theme_tui.lua
+fi
 stylua --check lua plugin tests

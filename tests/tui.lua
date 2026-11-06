@@ -125,7 +125,8 @@ timer:start(
           visible = visible .. screen(pos[1] + row + 1, pos[2] + 1, cfg.width)
         end
         assert(visible:find("Search actions", 1, true), "group missing from terminal")
-        assert(visible:find("␣ Space action", 1, true), "Space glyph missing from terminal")
+        assert(visible:find("␣ › 󰌌 Space action", 1, true), "Space glyph/icon missing from terminal")
+        assert(visible:find(" +Search actions", 1, true), "semantic group icon missing from terminal")
         assert(screen(pos[1], pos[2] + 1, cfg.width):find("n · ␣", 1, true), "Space glyph missing from title")
         mark("subgroup")
         stage = "nested"
@@ -168,6 +169,13 @@ timer:start(
         choose("filter_local", "filtered_local")
       elseif stage == "filtered_local" and picker.query == "Local action" then
         assert(#picker.matches == 1)
+        vim.cmd.redraw()
+        local pos = vim.fn.win_screenpos(picker.list_win)
+        local text = screen(pos[1], pos[2], vim.api.nvim_win_get_width(picker.list_win))
+        assert(
+          text:find("󰌌", 1, true) and text:find("Local action", 1, true),
+          "picker icon/text missing from terminal"
+        )
         mark("confirm_local")
         stage = "executed_local"
       elseif stage == "executed_local" and hits == 2 then

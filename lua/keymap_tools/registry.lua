@@ -71,9 +71,9 @@ local function normalize(spec, fixed_buf)
       local toggle = kind == "toggles"
       fields(
         item,
-        group and { prefix = true, label = true, modes = true, when = true, hidden = true }
-          or toggle and { keys = true, name = true, get = true, modes = true, when = true, hidden = true }
-          or { keys = true, desc = true, modes = true, when = true, hidden = true },
+        group and { prefix = true, label = true, modes = true, when = true, hidden = true, icon = true }
+          or toggle and { keys = true, name = true, get = true, modes = true, when = true, hidden = true, icon = true }
+          or { keys = true, desc = true, modes = true, when = true, hidden = true, icon = true },
         kind .. " entry"
       )
       local lhs = group and item.prefix or item.keys
@@ -87,6 +87,19 @@ local function normalize(spec, fixed_buf)
         "keymap-tools: entry requires a " .. (toggle and "name" or "label/description")
       )
       assert(not toggle or type(item.get) == "function", "keymap-tools: toggle requires a get function")
+      if type(item.icon) == "table" then
+        fields(item.icon, { icon = true, hl = true, ascii = true }, "icon")
+        assert(type(item.icon.icon) == "string", "keymap-tools: icon table requires an icon string")
+        assert(item.icon.hl == nil or type(item.icon.hl) == "string", "keymap-tools: invalid icon highlight")
+        assert(
+          item.icon.ascii == nil or type(item.icon.ascii) == "string" and not item.icon.ascii:find("[^ -~]"),
+          "keymap-tools: icon ascii must be printable ASCII"
+        )
+      else
+        assert(item.icon == nil or item.icon == false or type(item.icon) == "string", "keymap-tools: invalid icon")
+      end
+      local glyph = type(item.icon) == "table" and item.icon.icon or item.icon
+      assert(type(glyph) ~= "string" or not glyph:find("[%c]"), "keymap-tools: icon must be a single line")
       for _, field in ipairs({ "when", "hidden" }) do
         assert(
           item[field] == nil or type(item[field]) == "boolean" or type(item[field]) == "function",
@@ -102,6 +115,7 @@ local function normalize(spec, fixed_buf)
           mode = mode,
           when = item.when,
           hidden = item.hidden,
+          icon = vim.deepcopy(item.icon),
         }
       end
     end
@@ -213,6 +227,7 @@ function M.resolve(ctx, scope, errors, projection)
               kind = entry.kind,
               desc = text,
               toggle = toggle,
+              icon = vim.deepcopy(entry.icon),
               source = handle.source,
               scope = handle.data.buf and "buffer" or "global",
               buf = handle.data.buf,

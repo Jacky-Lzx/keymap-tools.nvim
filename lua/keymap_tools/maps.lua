@@ -82,8 +82,13 @@ function M.children(items, prefix, groups)
   local result = {}
   for _, child in pairs(children) do
     local group = groups[prefix .. child.key]
-    child.desc = group or (child.item and child.item.desc) or ("+ %d mappings"):format(child.count)
+    local metadata = type(group) == "table" and group or child.item
+    child.desc = (type(group) == "table" and group.desc or group)
+      or (child.item and child.item.desc)
+      or ("%d mappings"):format(child.count)
     child.group = group ~= nil or child.count > (child.item and 1 or 0)
+    child.icon = metadata and metadata.icon
+    child.toggle = metadata and metadata.toggle
     result[#result + 1] = child
   end
   keys.sort(result, "key")

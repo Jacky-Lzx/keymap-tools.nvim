@@ -1,21 +1,10 @@
 local keys = require("keymap_tools.keys")
+local icons = require("keymap_tools.icons")
+local display = require("keymap_tools.display")
 local M = {}
 local ns = vim.api.nvim_create_namespace("keymap_tools.view")
 
-local function key_label(raw)
-  return (keys.label(raw):gsub("<Space>", "␣"))
-end
-
-local function clip(text, width)
-  local result = ""
-  for _, char in ipairs(vim.fn.split(text, "\\zs")) do
-    if vim.fn.strdisplaywidth(result .. char) > width then
-      break
-    end
-    result = result .. char
-  end
-  return result
-end
+local key_label, clip = keys.display, display.clip
 
 local function footer_padding(border, width)
   local char, hl = "─", "KeymapToolsBorder"
@@ -48,8 +37,13 @@ function M.hide()
 end
 
 function M.highlights()
-  for name, link in pairs({ Normal = "NormalFloat", Border = "FloatBorder", Key = "Special", Group = "Title" }) do
-    vim.api.nvim_set_hl(0, "KeymapTools" .. name, { default = true, link = link })
+  icons.highlights()
+end
+
+function M.redraw()
+  if M.win and vim.api.nvim_win_is_valid(M.win) and M.frame then
+    local frame = M.frame
+    M.show(frame.children, frame.prefix, frame.mode, frame.config)
   end
 end
 
@@ -88,26 +82,35 @@ function M.show(children, prefix, mode, config)
     rows = rows,
     gap = gap,
   }
-  local key_width = 1
-  for _, child in ipairs(children) do
-    key_width = math.max(key_width, vim.fn.strdisplaywidth(key_label(child.key)))
+  local key_width, icon_width, decorations = 1, 0, {}
+  for i, child in ipairs(children) do
+    local label = key_label(child.key)
+    local icon, hl = icons.resolve(child)
+    decorations[i] = { label = label, icon = icon, icon_hl = hl }
+    key_width = math.max(key_width, vim.fn.strdisplaywidth(label))
+    icon_width = math.max(icon_width, vim.fn.strdisplaywidth(icon))
   end
   key_width = math.min(key_width, math.max(1, math.floor(column_width / 3)))
   local lines, spans = {}, {}
   for row = 1, rows do
     local line = ""
     for column = 1, columns do
-      local child = children[M.offset + (column - 1) * rows + row]
-      local cell, left = "", ""
+      local index = M.offset + (column - 1) * rows + row
+      local child = children[index]
+      local cell = ""
       if child then
-        local label = clip(key_label(child.key), key_width)
-        left = " " .. label .. string.rep(" ", key_width - vim.fn.strdisplaywidth(label)) .. " "
-        cell = clip(left .. child.desc, column_width)
-        local key_end = math.min(#cell, #left)
-        spans[#spans + 1] = { row = row - 1, start = #line, finish = #line + key_end, hl = "KeymapToolsKey" }
-        if child.group and #cell > key_end then
-          spans[#spans + 1] =
-            { row = row - 1, start = #line + key_end, finish = #line + #cell, hl = "KeymapToolsGroup" }
+        local ranges
+        cell, ranges = display.row(
+          child,
+          vim.tbl_extend("force", {}, decorations[index], {
+            key_width = key_width,
+            icon_width = icon_width,
+            width = column_width,
+            padding = " ",
+          })
+        )
+        for _, range in ipairs(ranges) do
+          spans[#spans + 1] = { row = row - 1, start = #line + range[1], finish = #line + range[2], hl = range.hl }
         end
       end
       line = line .. cell
@@ -118,7 +121,7 @@ function M.show(children, prefix, mode, config)
     lines[row] = line
   end
   if footer then
-    lines[height] = clip(" " .. position .. "  <C-d>/<C-u>", width)
+    lines[height] = clip(" " .. position .. "  Ctrl+d / Ctrl+u", width)
     spans[#spans + 1] = { row = height - 1, start = 0, finish = #lines[height], hl = "KeymapToolsGroup" }
   end
   if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
@@ -149,7 +152,7 @@ function M.show(children, prefix, mode, config)
   }
   if bordered and overflow then
     local counter = clip(" " .. position .. " ", width)
-    local controls = " <C-d>/<C-u> "
+    local controls = " Ctrl+d / Ctrl+u "
     local padding = width - vim.fn.strdisplaywidth(counter) - #controls
     win_config.footer = { { counter, "KeymapToolsGroup" } }
     win_config.footer_pos = "right"

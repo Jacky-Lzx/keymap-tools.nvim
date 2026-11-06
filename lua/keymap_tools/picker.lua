@@ -4,6 +4,19 @@ local maps = require("keymap_tools.maps")
 local query = require("keymap_tools.query")
 local context = require("keymap_tools.context")
 local M = {}
+local active
+
+function M.redraw()
+  if not active or active.picker.closed then
+    return
+  end
+  local picker = active.picker
+  local entry = picker.matches[picker.index]
+  local saved = { index = entry and entry.index, marks = vim.deepcopy(picker.marks), offset = picker.offset }
+  active.rebuild()
+  picker:set_items(active.items)
+  picker:restore(saved)
+end
 
 function M.open(opts)
   opts = opts or {}
@@ -25,6 +38,9 @@ function M.open(opts)
     return false
   end
   local config = require("keymap_tools.config").get()
+  local icons = require("keymap_tools.icons")
+  local display = require("keymap_tools.display")
+  require("keymap_tools.view").highlights()
   local items =
     query.collect(vim.tbl_extend("force", {}, origin, { scope = "effective", kinds = { "mapping" } }), config)
   if opts.prefix then
@@ -65,23 +81,57 @@ function M.open(opts)
     end
     return false, "Mapping changed; reopen the keymap picker"
   end
-  return selection.select(
+  local formatted, decorations, icon_width = {}, {}, 0
+  local function rebuild()
+    formatted, decorations, icon_width = {}, {}, 0
+    for _, item in ipairs(items) do
+      local icon, hl = icons.resolve(item, config.icons)
+      decorations[item] = { icon = icon, hl = hl }
+      icon_width = math.max(icon_width, vim.fn.strdisplaywidth(icon))
+    end
+  end
+  rebuild()
+  local function presentation(item)
+    if not formatted[item] then
+      local decoration = decorations[item]
+      local label = keys.display(item.keys)
+      local text, spans = display.row(item, {
+        label = label,
+        key_width = math.max(18, vim.fn.strdisplaywidth(label)),
+        icon = decoration.icon,
+        icon_hl = decoration.hl,
+        icon_width = icon_width,
+        width = math.huge,
+        scope = true,
+      })
+      formatted[item] = { text = text, spans = spans }
+    end
+    return formatted[item]
+  end
+  local on_close = opts.on_close or config.picker.on_close
+  local picker = selection.select(
     items,
     vim.tbl_deep_extend("force", {}, config.picker, opts, {
       prompt = "Buffer keymaps · " .. origin.mode,
       resume = false,
       preview = { enabled = false },
+      item_icons = false,
       format_item = function(item)
-        local label = keys.label(item.keys)
-        return ("%s%s  %-6s  %s"):format(
-          label,
-          string.rep(" ", math.max(0, 18 - vim.fn.strdisplaywidth(label))),
-          item.scope,
-          item.desc
-        )
+        return presentation(item).text
+      end,
+      highlight_item = function(item)
+        return presentation(item).spans
       end,
       before_confirm = function(ctx)
         return valid(ctx.item)
+      end,
+      on_close = function(closed, outcome)
+        if active and active.picker == closed then
+          active = nil
+        end
+        if on_close then
+          on_close(closed, outcome)
+        end
       end,
     }),
     function(item)
@@ -112,6 +162,10 @@ function M.open(opts)
       end)
     end
   )
+  if type(picker) == "table" and not picker.closed then
+    active = { picker = picker, items = items, rebuild = rebuild }
+  end
+  return picker
 end
 
 return M

@@ -16,10 +16,15 @@ local children = {
 }
 view.show(children, "", "n", options)
 local lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
-assert(#lines == 3 and lines[1]:find(" a 中文", 1, true) == 1 and lines[2]:find(" b Second", 1, true) == 1)
-local right = assert(lines[1]:find(" d Right", 1, true), "right column is missing")
+assert(
+  #lines == 3
+    and lines[1]:find(" a › 󰌌 中文", 1, true) == 1
+    and lines[2]:find(" b › 󰌌 Second", 1, true) == 1
+)
+local right = assert(lines[1]:find(" d › 󰉋 +Right", 1, true), "right column is missing")
 assert(vim.fn.strdisplaywidth(lines[1]:sub(1, right - 1)) == 41, "wide/combining text shifted the right column")
-assert(lines[2]:find(" e Long", 1, true), "columns should fill from top to bottom")
+assert(lines[2]:find(" e › 󰌌 Long", 1, true), "columns should fill from top to bottom")
+assert(lines[2]:sub(-3) == "…", "clipped descriptions should end with an ellipsis")
 assert(not lines[3]:find("Long", 1, true), "odd final item duplicated into an empty cell")
 for _, line in ipairs(lines) do
   assert(vim.fn.strdisplaywidth(line) <= 80)
@@ -28,7 +33,7 @@ local spans =
   api.nvim_buf_get_extmarks(view.buf, api.nvim_create_namespace("keymap_tools.view"), 0, -1, { details = true })
 local highlighted = false
 for _, span in ipairs(spans) do
-  if span[2] == 0 and span[3] == right - 1 + 3 and span[4].hl_group == "KeymapToolsGroup" then
+  if span[2] == 0 and span[3] == lines[1]:find("+Right", 1, true) - 1 and span[4].hl_group == "KeymapToolsGroup" then
     highlighted = true
   end
 end
@@ -43,12 +48,9 @@ local seen = {}
 for page = 1, 3 do
   lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
   for row = 1, #lines do
-    for _, cell in ipairs({ lines[row]:sub(1, 38), lines[row]:sub(42) }) do
-      local key = cell:match("^ (.) ")
-      if key then
-        assert(not seen[key], "paging duplicated " .. key)
-        seen[key] = true
-      end
+    for key in lines[row]:gmatch(" (.) › ") do
+      assert(not seen[key], "paging duplicated " .. key)
+      seen[key] = true
     end
   end
   if page < 3 then
@@ -57,7 +59,7 @@ for page = 1, 3 do
 end
 assert(vim.tbl_count(seen) == 15, "paging omitted candidates")
 local cfg = api.nvim_win_get_config(view.win)
-assert(cfg.footer_pos == "left" and cfg.footer[1][1] == " <C-d>/<C-u> ", "controls should start at bottom-left")
+assert(cfg.footer_pos == "left" and cfg.footer[1][1] == " Ctrl+d / Ctrl+u ", "controls should start at bottom-left")
 assert(cfg.footer[3][1] == " 13-15/15 ", "last-page count includes empty cells")
 assert(vim.fn.strdisplaywidth(cfg.footer[1][1] .. cfg.footer[2][1] .. cfg.footer[3][1]) == 80)
 assert(view.frame.page == 6 and #lines == 3, "border controls should free the last content row")
@@ -77,7 +79,7 @@ assert(api.nvim_win_get_height(view.win) == 1 and view.frame.page == 2)
 view.show({ { key = " ", desc = "Space action" }, { key = "a", desc = "Letter action" } }, " g", "n", options)
 assert(api.nvim_win_get_config(view.win).footer == nil, "short lists should not have a page position")
 lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
-assert(lines[1]:find(" ␣ Space action", 1, true) == 1, "Space should use a compact visible glyph")
+assert(lines[1]:find(" ␣ › 󰌌 Space action", 1, true) == 1, "Space should use a compact visible glyph")
 assert(api.nvim_win_get_config(view.win).title[1][1] == " n · ␣g ", "prefix should use the same Space glyph")
 assert(require("keymap_tools.keys").label(" ") == "<Space>", "canonical key notation must remain replayable")
 for _, border in ipairs({ "none", "", "double", { "+", "-", "+", "|" } }) do
@@ -86,9 +88,9 @@ for _, border in ipairs({ "none", "", "double", { "+", "-", "+", "|" } }) do
   lines = api.nvim_buf_get_lines(view.buf, 0, -1, false)
   if border == "none" or border == "" then
     assert(cfg.footer == nil and view.frame.page == 4, "borderless hints should retain a content footer")
-    assert(lines[3] == " 1-4/15  <C-d>/<C-u>")
+    assert(lines[3] == " 1-4/15  Ctrl+d / Ctrl+u")
   else
-    assert(cfg.footer[2][1] == string.rep(border == "double" and "═" or "-", 59))
+    assert(cfg.footer[2][1] == string.rep(border == "double" and "═" or "-", 55))
   end
 end
 view.show(many, "narrow", "n", vim.tbl_extend("force", options, { width = 16 }))

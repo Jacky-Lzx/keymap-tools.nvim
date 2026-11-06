@@ -9,6 +9,7 @@ SETUP                                                   *keymap-tools-setup*
     defer = true,
     hints = { enabled = true, delay = 200, operators = true },
     window = { width = 80, height = 16, columns = 2, border = "rounded" },
+    icons = { enabled = true, rules = {} },
     picker = {},
     showkeys = { enabled = false },
     presets = true,
@@ -43,6 +44,8 @@ Narrow windows fall back to one column; window.columns=1 forces one column.
 Space appears as ␣. Scrolling keys sit on the bottom-left border and the candidate
 range on the bottom-right border. Very narrow borders keep only the range;
 borderless hints use a content footer.
+Keys use compact labels (Ctrl+w, ↵, ⇥, arrows); groups have a + marker. Descriptions
+end with … when clipped. Canonical query keys and native replay remain intact.
 
 " shows registers; C-r shows them in Insert/command-line mode. Clipboard contents
 are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;
@@ -61,6 +64,37 @@ COMMAND                                                 *:KeymapTools*
 :KeymapTools showkeys    Toggle the recent-key screencast.
 :KeymapTools showkeys enable / disable / toggle
                         Explicit screencast listener actions.
+
+ENTRY ICONS                                             *keymap-tools-icons*
+
+Hints and the picker show semantic icons by default. Built-in rules match English
+and Chinese descriptions; unmatched entries have a fallback. No icon provider is
+required. Default glyphs require a Nerd Font. icons.enabled=false hides icons.
+>
+  tools.setup({ icons = { rules = {
+    { pattern = "search", icon = "", hl = "DiagnosticInfo" },
+  } } })
+  tools.register("project", {
+    groups = { { prefix = "<leader>p", label = "Project", icon = "󰉋" } },
+    hints = { { keys = "<leader>pb", desc = "Build",
+      icon = { icon = "⚒", hl = "DiagnosticWarn" } } },
+  })
+<
+Groups, hints and toggles accept icon as a string, {icon=...,hl=...,ascii=...}, or false to
+suppress the entry's icon. Icons must be single-line strings; hl is optional.
+Precedence: explicit icon, custom rules, toggle state, built-in rules, fallback.
+Custom rules match Lua patterns against the lowercased description, in order.
+Group icons decorate group rows. Registered icons are returned by list() as
+detached metadata. Automatic icons are resolved at display time only.
+
+If theme-tools is already loaded, shared ui icons and returned highlights take
+precedence over built-in defaults. Its none mode hides all entry icons; ascii
+uses shared text labels. Custom icons/rules may provide an ascii string;
+otherwise they use the shared keymap fallback in ASCII mode. Shared overrides,
+icon modes and palette changes refresh open hints/pickers, retaining the picker
+query, selected item and input focus. Private highlight defaults follow the
+palette; public KeymapTools* overrides remain user/theme-owned. Standalone use
+does not load theme-tools. Metadata registration and list() do not initialize UI.
 
 KEY SCREENCAST                                          *keymap-tools-showkeys*
 >
@@ -201,6 +235,7 @@ CONFIGURATION                                           *keymap-tools-options*
 
 hints.enabled/ delay/ operators/ triggers    Automatic hint behavior.
 window.width/ height/ columns/ border       Hint appearance; width is total width.
+icons.enabled/ rules                        Entry icons and custom matching rules.
 picker                                      selection-tools picker options.
 showkeys                                    Optional recent-key screencast.
 presets                                     true/false or individual catalog flags.
@@ -212,6 +247,9 @@ No add()/get_keymaps() or positional registration API remains. Use register(),
 list(), hints/window options and explicit user key bindings.
 
 Highlights: KeymapToolsNormal, KeymapToolsBorder, KeymapToolsKey, KeymapToolsGroup.
+Also KeymapToolsSeparator, KeymapToolsMuted, KeymapToolsIcon and
+KeymapToolsIconBlue/Cyan/Green/Orange/Purple/Red/Yellow. Setup and colorscheme
+handlers apply theme-linked defaults without overwriting existing definitions.
 See README.md for installation and validation details.
 
 vim:tw=78:ts=8:ft=help:norl:

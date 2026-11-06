@@ -29,6 +29,39 @@ function M.label(raw)
   return vim.fn.keytrans(raw)
 end
 
+-- Presentation only: canonical labels and raw keycodes still drive queries/replay.
+function M.display(raw)
+  local labels = {
+    Space = "␣",
+    CR = "↵",
+    NL = "↵",
+    Tab = "⇥",
+    BS = "⌫",
+    Esc = "Esc",
+    Up = "↑",
+    Down = "↓",
+    Left = "←",
+    Right = "→",
+    Del = "Del",
+    PageUp = "Page↑",
+    PageDown = "Page↓",
+  }
+  local modifiers = { C = "Ctrl", M = "Alt", A = "Alt", D = "⌘", S = "Shift" }
+  return (
+    M.label(raw):gsub("<([^>]+)>", function(token)
+      local prefix = ""
+      while token:match("^[CMADS]%-") do
+        prefix = prefix .. modifiers[token:sub(1, 1)] .. "+"
+        token = token:sub(3)
+      end
+      if prefix:find("Ctrl+", 1, true) and token:match("^%u$") then
+        token = token:lower()
+      end
+      return prefix .. (labels[token] or token)
+    end)
+  )
+end
+
 function M.matches_prefix(raw, prefixes)
   if not prefixes then
     return true

@@ -5,6 +5,8 @@ selection-tools.nvim. Includes operator-pending motions/textobjects, register an
 mark previews, spelling suggestions, dynamic descriptions, and list scrolling.
 Hints use two columns by default, filling top to bottom and then left to right.
 Narrow windows automatically fall back to one column.
+Hints and the picker display readable key labels, separators and colored semantic
+icons for every entry, with a `+` marker for groups (inspired by which-key.nvim).
 Read-only toggle registrations supply live descriptions and structured state;
 feature owners keep their mappings and switching logic.
 An optional built-in key screencast displays recently typed keys for recordings
@@ -105,6 +107,7 @@ require("keymap_tools").setup({
     },
   },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
+  icons = { enabled = true, rules = {} },
   picker = {}, -- selection-tools options, e.g. layout = { width = 0.7 }
   showkeys = { enabled = false }, -- Optional recent-key screencast; see below
   presets = true,
@@ -128,9 +131,56 @@ actual Neovim mappings always take precedence.
 `window.width` is the total hint width. `columns = 2` is the default; set it to
 `1` for a single column. Paging covers both columns and displays the actual range
 of candidates, including a partially filled final page. Space is displayed as `␣`.
+Special keys use compact labels such as `↵`, `⇥`, `←` and `Ctrl+w`; query results
+and mapping execution retain canonical key notation. Long descriptions end in `…`.
 Bordered hints show scrolling keys at the bottom left and the candidate range at
 the bottom right, leaving all content rows available. Very narrow borders keep
 the range; borderless hints use a content footer.
+
+### Entry icons
+
+Icons use built-in rules matching English or Chinese descriptions (search, Git,
+files, LSP, windows, etc.), toggle state, and a fallback for unmatched entries.
+No icon plugin is required; the default glyphs need a Nerd Font. Set
+`icons = { enabled = false }` to remove the icon column. To use custom glyphs,
+add rules in order; patterns match the lowercased description:
+
+```lua
+require("keymap_tools").setup({
+  icons = { rules = {
+    { pattern = "search", icon = "", hl = "DiagnosticInfo" },
+    { pattern = "build", icon = "⚒", hl = "Constant" },
+  } },
+})
+
+require("keymap_tools").register("project", {
+  groups = { { prefix = "<leader>p", label = "Project", icon = "󰉋" } },
+  hints = { { keys = "<leader>pb", desc = "Build", icon = {
+    icon = "⚒", ascii = "B", hl = "DiagnosticWarn",
+  } } },
+})
+```
+
+Groups, hints and toggles accept a static `icon` string, `{ icon = "…", hl = "…", ascii = "B" }`,
+or `false` to suppress that entry's icon. Explicit icons take precedence over
+custom rules, then toggle state, built-in rules and the fallback. Registration
+icons are also returned by `list()` as detached metadata; inferred icons are
+resolved only for presentation. An icon on a group decorates that group row.
+
+Highlights link to the active theme by default: `KeymapToolsKey`,
+`KeymapToolsSeparator`, `KeymapToolsGroup`, `KeymapToolsMuted`, `KeymapToolsIcon`,
+and `KeymapToolsIconBlue/Cyan/Green/Orange/Purple/Red/Yellow`. Setup and colorscheme
+handlers apply defaults without overwriting existing definitions.
+
+When theme-tools is loaded, automatic icons use `theme_tools.icons.get("ui", name)`
+and its returned highlight. Shared overrides and provider changes apply to open
+hints and pickers: `none` hides all entry icons; `ascii` uses shared text labels,
+including an explicit icon's optional `ascii` label. Custom icons without an
+ASCII label use the shared `keymap` fallback. The palette subscription supplies
+hint surfaces, key/group colors and separators. Private defaults refresh on theme
+changes while public `KeymapTools*` overrides remain untouched. Picker refreshes
+preserve the query, selected mapping and input focus. This integration never
+loads theme-tools just to register metadata, query keys or render standalone hints.
 
 ## Recent-key screencast
 
@@ -369,7 +419,8 @@ keymaps.refresh()
 
 `list()` is read-only and returns detached rows with canonical `keys`, `kind`,
 `source`, `metadata_source` (when decorating an actual map), `scope`, `buf`,
-`mode`, `desc`, `hidden`, and `executable`. Only real mappings have
+`mode`, `desc`, `hidden`, and `executable`, plus `icon` when explicitly registered.
+Only real mappings have
 `executable = true`. Toggle registrations additionally supply `toggle` with
 `name` and boolean-or-unknown `state`. Internal keycodes and map dictionaries are
 not public data.
@@ -410,3 +461,5 @@ and picker workflows, plus screencast rendering, input bursts, hint replay,
 timeouts, exclusions and lifecycle cleanup. Set
 `SELECTION_TOOLS_DIR`, `MINI_AI_DIR` or `NVIM_BIN` to override local test paths.
 Python 3, StyLua and the English spelling dictionary are required for the suite.
+When the sibling theme-tools checkout exists, the suite also tests real terminal
+theme/icon switching; set `THEME_TOOLS_DIR` to override its location.

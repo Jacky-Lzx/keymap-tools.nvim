@@ -66,6 +66,7 @@ function M.collect(opts, config)
     if item then
       item.desc, item.hidden, item.metadata_source = entry.desc, entry.hidden, entry.source
       item.toggle = entry.toggle
+      item.icon = entry.icon
     else
       entry.virtual, entry.map = true, {}
       merged[raw] = entry
@@ -151,6 +152,7 @@ function M.list(opts)
       mode = info.context.mode,
       desc = item.desc,
       toggle = item.toggle and vim.deepcopy(item.toggle) or nil,
+      icon = vim.deepcopy(item.icon),
       hidden = item.hidden == true,
       executable = item.kind == "mapping",
     }
@@ -167,7 +169,7 @@ function M.hints(ctx, config)
   for _, row in ipairs(rows) do
     if row.kind == "group" then
       if not row.hidden then
-        groups[row.keys] = row.desc
+        groups[row.keys] = row
       end
     else
       items[#items + 1] = row

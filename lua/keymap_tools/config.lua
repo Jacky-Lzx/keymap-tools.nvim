@@ -7,6 +7,7 @@ local defaults = {
   defer = false,
   hints = { enabled = true, delay = 200, triggers = triggers, operators = true },
   window = { width = 80, height = 16, columns = 2, border = "rounded" },
+  icons = { enabled = true, rules = {} },
   picker = {},
   showkeys = {
     enabled = false,
@@ -48,6 +49,31 @@ function M.normalize(opts)
     assert(defaults[key] ~= nil, "keymap-tools: unknown setup field: " .. tostring(key))
   end
   local result = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts)
+  assert(type(result.icons) == "table", "keymap-tools: icons must be a table")
+  for field in pairs(result.icons) do
+    assert(defaults.icons[field] ~= nil, "keymap-tools: unknown icons field: " .. tostring(field))
+  end
+  assert(type(result.icons.enabled) == "boolean", "keymap-tools: icons.enabled must be boolean")
+  assert(vim.islist(result.icons.rules), "keymap-tools: icons.rules must be a list")
+  for _, rule in ipairs(result.icons.rules) do
+    assert(type(rule) == "table", "keymap-tools: icon rule must be a table")
+    for field in pairs(rule) do
+      assert(
+        field == "pattern" or field == "icon" or field == "hl" or field == "ascii",
+        "keymap-tools: unknown icon rule field"
+      )
+    end
+    assert(
+      type(rule.pattern) == "string" and pcall(string.find, "", rule.pattern),
+      "keymap-tools: invalid icon pattern"
+    )
+    assert(type(rule.icon) == "string" and not rule.icon:find("[%c]"), "keymap-tools: invalid rule icon")
+    assert(rule.hl == nil or type(rule.hl) == "string", "keymap-tools: invalid icon highlight")
+    assert(
+      rule.ascii == nil or type(rule.ascii) == "string" and not rule.ascii:find("[^ -~]"),
+      "keymap-tools: rule ascii must be printable ASCII"
+    )
+  end
   if opts.showkeys and opts.showkeys.excluded_modes ~= nil then
     result.showkeys.excluded_modes = vim.deepcopy(opts.showkeys.excluded_modes)
   end
