@@ -7,6 +7,7 @@ function M.register(source, spec)
     name = true,
     get = true,
     set = true,
+    action = true,
     notify = true,
     buf = true,
     modes = true,
@@ -20,7 +21,12 @@ function M.register(source, spec)
   end
   assert(type(spec.name) == "string" and spec.name:match("%S"), "keymap-tools: toggle requires a name")
   assert(type(spec.get) == "function", "keymap-tools: toggle requires a get function")
-  assert(type(spec.set) == "function", "keymap-tools: toggle requires a set function")
+  assert(
+    (type(spec.set) == "function") ~= (type(spec.action) == "function"),
+    "keymap-tools: toggle needs exactly one set or action function"
+  )
+  assert(spec.set == nil or type(spec.set) == "function", "Invalid toggle set")
+  assert(spec.action == nil or type(spec.action) == "function", "Invalid toggle action")
   assert(spec.notify == nil or type(spec.notify) == "boolean", "keymap-tools: toggle notify must be a boolean")
   spec = vim.deepcopy(spec)
   if spec.buf == 0 then
@@ -49,9 +55,16 @@ function M.register(source, spec)
   local function callback()
     local ok, state = pcall(function()
       local ctx = require("keymap_tools.context").resolve({ buf = spec.buf })
-      local current = read(ctx)
-      assert(current ~= nil, "keymap-tools: toggle state is unavailable")
-      spec.set(not current, vim.deepcopy(ctx))
+      if spec.action then
+        local accepted, err = spec.action(vim.deepcopy(ctx))
+        if accepted == false and type(err) == "string" then
+          error(err)
+        end
+      else
+        local current = read(ctx)
+        assert(current ~= nil, "keymap-tools: toggle state is unavailable")
+        spec.set(not current, vim.deepcopy(ctx))
+      end
       return read(ctx)
     end)
     if not ok then

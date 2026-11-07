@@ -571,6 +571,26 @@
         "path:{root}/../selection-tools.nvim/lua"
       ],
       "timeout": 90
+    },
+    {
+      "name": "bindings",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-n",
+        "-l",
+        "tests/bindings.lua"
+      ],
+      "files": [
+        "tests/bindings.lua"
+      ],
+      "timeout": 90
     }
   ],
   "support": {

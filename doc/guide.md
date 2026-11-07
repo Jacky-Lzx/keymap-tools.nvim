@@ -416,3 +416,17 @@ timeouts, exclusions and lifecycle cleanup. Set
 Python 3, StyLua and the English spelling dictionary are required for the suite.
 When the sibling theme-tools checkout exists, the suite also tests real terminal
 theme/icon switching; set `THEME_TOOLS_DIR` to override its location.
+
+## Optional mapping ownership
+
+`require("keymap_tools.bindings").new()` creates an independent mapping owner.
+`set(owner, entries)` replaces an owner's list; `set_buffer(owner, buf, entries)`
+scopes entries and releases them on wipeout. Entries support `mode`, `ft`, `buffer`,
+`id` and native mapping options. `dispose()` releases owned registrations while
+preserving mappings subsequently replaced by users. No manager, hints, metadata
+or UI is initialized. `entries` exposes the caller's current declarations.
+`new({ group_prefix = "..." })` selects a stable, instance-unique augroup prefix.
+
+`register_toggle` accepts exactly one of `set(state, ctx)` and `action(ctx)`.
+Explicit actions can initialize a cold provider whose `get(ctx)` returns nil;
+inspection only reads metadata. `false, error` from an action reports rejection.

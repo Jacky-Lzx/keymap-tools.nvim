@@ -112,3 +112,40 @@ local _, scoped = tools.register_toggle("scoped", {
 api.nvim_buf_delete(buffer, { force = true })
 assert(not scoped:dispose())
 print("PASS explicit toggle actions, read-only queries, live state, errors, contexts, scopes and mapping ownership")
+
+local cold_state, action_calls = nil, 0
+local action = tools.register_toggle("cold.action", {
+  keys = "<F15>",
+  name = "Cold",
+  get = function()
+    return cold_state
+  end,
+  action = function(ctx)
+    action_calls = action_calls + 1
+    ctx.buf = -1
+    cold_state = not cold_state
+  end,
+})
+assert(action_calls == 0)
+assert(action() == true and action_calls == 1)
+assert(action() == false and action_calls == 2)
+local rejected = tools.register_toggle("reject.action", {
+  keys = "<F14>",
+  name = "Rejected",
+  get = function()
+    return nil
+  end,
+  action = function()
+    return false, "provider refused"
+  end,
+})
+assert(rejected() == nil and notices[#notices].message:find("provider refused", 1, true))
+assert(not pcall(tools.register_toggle, "both", {
+  keys = "x",
+  name = "Both",
+  get = function()
+    return true
+  end,
+  set = function() end,
+  action = function() end,
+}))
