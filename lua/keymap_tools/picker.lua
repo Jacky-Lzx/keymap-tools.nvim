@@ -173,6 +173,47 @@ function M.open(opts)
   })
   local restore_allowed = true
   local on_close = opts.on_close or config.picker.on_close
+  if picker_opts.components == nil and not picker_opts.format_item then
+    local C = require("selection_tools.components")
+    picker_opts.components = {
+      C.text({
+        get = function(item)
+          return keys.display(item.keys)
+        end,
+        min_width = 18,
+        hl = "KeymapToolsKey",
+      }),
+      C.text({
+        get = function()
+          return "›"
+        end,
+        searchable = false,
+        hl = "KeymapToolsSeparator",
+      }),
+      C.text({
+        get = function(item)
+          return decorations[item].icon
+        end,
+        searchable = false,
+        hl = false,
+        highlights = function(item)
+          local icon = decorations[item]
+          return { { 0, #icon.icon, hl = icon.hl } }
+        end,
+      }),
+      C.text({ field = "scope", width = 6, hl = "KeymapToolsMuted" }),
+      C.text({
+        get = function(item)
+          return (item.group and "+" or "") .. item.desc
+        end,
+        grow = 1,
+        truncate = "match",
+        highlights = function(item)
+          return item.group and { { 0, #item.desc + 1, hl = "KeymapToolsGroup" } } or {}
+        end,
+      }),
+    }
+  end
   local picker = selection.select(
     items,
     vim.tbl_deep_extend("force", {}, picker_opts, {
@@ -187,9 +228,9 @@ function M.open(opts)
       format_item = function(item)
         return presentation(item).text
       end,
-      highlight_item = function(item)
+      highlight_item = not picker_opts.components and function(item)
         return presentation(item).spans
-      end,
+      end or nil,
       before_confirm = function(ctx)
         return valid(ctx.item)
       end,

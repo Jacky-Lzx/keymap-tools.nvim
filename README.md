@@ -1,5 +1,7 @@
 # keymap-tools.nvim
 
+The selection-tools picker composes key, icon, scope and description columns. Icons and separators do not affect matching. Description text inherits shared component defaults; `components = false` retains the legacy formatted row.
+
 Key hints, searchable mappings and live toggle descriptions.
 
 ## Features
