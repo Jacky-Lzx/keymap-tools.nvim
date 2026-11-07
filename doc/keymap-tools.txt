@@ -1,8 +1,40 @@
-*keymap-tools.txt*       Bottom-right hints and executable mapping picker
+*keymap-tools.txt*	Key hints, searchable mappings and live toggle descriptions.
+
+==============================================================================
+CONTENTS                                                        *keymap-tools*
+
+  Quick start         |keymap-tools-quickstart|
+  Commands            |keymap-tools-commands|
+  Options             |keymap-tools-options|
+  Lua API             |keymap-tools-api|
+  Lifecycle           |keymap-tools-lifecycle|
+  Troubleshooting     |keymap-tools-troubleshooting|
+
+==============================================================================
+QUICK START                                          *keymap-tools-quickstart*
+
+Requires Neovim 0.10+. Hints have no required plugin dependency. The mapping
+picker requires selection-tools.nvim.
+
+>lua
+    require("keymap_tools").setup({})
+<
+
+The example above selects a small working setup. Full defaults, options and
+feature contracts are documented in this reference. Public installation and
+package-manager examples are in README.md.
+
+==============================================================================
+TROUBLESHOOTING                                 *keymap-tools-troubleshooting*
+
+Check the minimum Neovim version and feature dependencies first. Run
+:checkhealth keymap_tools to inspect availability. Global mappings shown in
+the README are configuration examples unless explicitly documented as plugin
+defaults. Keep one owner for each overridden UI or mapping.
 
 Requires Neovim 0.10+. selection-tools.nvim is needed only for the picker.
 
-SETUP                                                   *keymap-tools-setup*
+SETUP                                                     *keymap-tools-setup*
 >
   local tools = require("keymap_tools")
   tools.setup({
@@ -20,69 +52,76 @@ SETUP                                                   *keymap-tools-setup*
 <
 Set mapleader before registration. Setup creates no global picker shortcut.
 Automatic prefix rules use hints.triggers, a list of {prefix=...,modes={...}}.
-Defaults: leader, localleader, g, z, [, ], C-w in n/x/o. Lists replace defaults,
-including an empty list. hints.operators controls ModeChanged operator hints.
-Provider prefixes are controlled by provider options, subject to hints.enabled.
-Trigger modes are n/x/o/i/c. Disable competing hint plugins on those prefixes.
+Defaults: leader, localleader, g, z, [, ], C-w in n/x/o. Lists replace
+defaults, including an empty list. hints.operators controls ModeChanged
+operator hints. Provider prefixes are controlled by provider options, subject
+to hints.enabled. Trigger modes are n/x/o/i/c. Disable competing hint plugins
+on those prefixes.
 
 defer=true delays an early setup until VimEnter, before the first input. The
-default is false (synchronous setup). Explicit show/pick/refresh activate pending
-setup immediately; reconfiguring an active engine is always synchronous.
-With lazy.nvim, use event="VimEnter" and defer=true, and register selection-tools
-separately: only pick() needs it, so hints do not require an eager dependency.
-register() loads metadata storage only; list() does not initialize the hint engine
-or UI. Hint rendering loads on first display.
+default is false (synchronous setup). Explicit show/pick/refresh activate
+pending setup immediately; reconfiguring an active engine is always
+synchronous. With lazy.nvim, use event="VimEnter" and defer=true, and register
+selection-tools separately: only pick() needs it, so hints do not require an
+eager dependency. register() loads metadata storage only; list() does not
+initialize the hint engine or UI. Hint rendering loads on first display.
 
-LIFECYCLE                                               *keymap-tools-lifecycle*
+LIFECYCLE                                             *keymap-tools-lifecycle*
 
 setup(nil)/setup({}) use fresh defaults. Caller tables are copied; dictionary
-fields merge and lists replace defaults, including empty lists. Invalid options
-are rejected before changing live handlers, mappings, configuration or views.
-Repeating setup does not accumulate registrations.
+fields merge and lists replace defaults, including empty lists. Invalid
+options are rejected before changing live handlers, mappings, configuration or
+views. Repeating setup does not accumulate registrations.
 >
   tools.disable()     -- Release runtime resources, retain options/live showkeys state.
   tools.enable()      -- Restore retained setup, or use defaults.
   tools.is_enabled()  -- True after setup, including deferred startup.
   tools.dispose()     -- Release runtime resources and forget configuration.
 <
-Disable/dispose close owned hints, keymap pickers and screencasts; remove owned
-prefix mappings, callbacks and timers; unsubscribe from themes; and invalidate
-queued startup, refresh and mapping replay. A pending Visual/operator hint is
-cancelled without changing source text. User replacements and adopted windows
-or buffers survive. Both operations are safe when cold or repeated.
+Disable/dispose close owned hints, keymap pickers and screencasts; remove
+owned prefix mappings, callbacks and timers; unsubscribe from themes; and
+invalidate queued startup, refresh and mapping replay. A pending
+Visual/operator hint is cancelled without changing source text. User
+replacements and adopted windows or buffers survive. Both operations are safe
+when cold or repeated.
 
 External registration handles, toggle actions, and user mappings survive.
 Their owners must dispose metadata handles explicitly. The static :KeymapTools
-command remains available; show/pick/refresh explicitly enable the plugin again.
-After dispose, explicit use starts from defaults. list/register/register_toggle
-do not activate hints. showkeys.is_enabled() reports its independent listener;
-tools.is_enabled() reports the overall setup lifetime.
+command remains available; show/pick/refresh explicitly enable the plugin
+again. After dispose, explicit use starts from defaults.
+list/register/register_toggle do not activate hints. showkeys.is_enabled()
+reports its independent listener; tools.is_enabled() reports the overall setup
+lifetime.
 
-USAGE                                                   *keymap-tools-usage*
+USAGE                                                     *keymap-tools-usage*
 
-Pause after a prefix to see next keys; after d/c/y/gU/g@ for motions/textobjects.
-Type i/a to narrow textobjects, BS to go up, Esc/C-c to cancel. C-d/C-u pages long
-lists unless a candidate uses that key. Unknown sequences replay normally.
-Counts, registers, custom operators, native dot-repeat and undo are retained.
-Hints default to two columns, filled top to bottom and then left to right.
-Narrow windows fall back to one column; window.columns=1 forces one column.
-Space appears as ␣. Scrolling keys sit on the bottom-left border and the candidate
-range on the bottom-right border. Very narrow borders keep only the range;
-borderless hints use a content footer.
-Keys use compact labels (Ctrl+w, ↵, ⇥, arrows); groups have a + marker. Descriptions
-end with … when clipped. Canonical query keys and native replay remain intact.
+Pause after a prefix to see next keys; after d/c/y/gU/g@ for
+motions/textobjects. Type i/a to narrow textobjects, BS to go up, Esc/C-c to
+cancel. C-d/C-u pages long lists unless a candidate uses that key. Unknown
+sequences replay normally. Counts, registers, custom operators, native
+dot-repeat and undo are retained. Hints default to two columns, filled top to
+bottom and then left to right. Narrow windows fall back to one column;
+window.columns=1 forces one column. Space appears as ␣. Scrolling keys sit on
+the bottom-left border and the candidate range on the bottom-right border.
+Very narrow borders keep only the range; borderless hints use a content
+footer. Keys use compact labels (Ctrl+w, ↵, ⇥, arrows); groups have a +
+marker. Descriptions end with … when clipped. Canonical query keys and native
+replay remain intact.
 
-" shows registers; C-r shows them in Insert/command-line mode. Clipboard contents
-are not read unless providers.registers.clipboard=true. '/`/g'/g` shows marks;
-z= shows spelling suggestions; a numeric prefix such as 1z= keeps native behavior.
+" shows registers; C-r shows them in Insert/command-line mode. Clipboard
+contents are not read unless providers.registers.clipboard=true. '/`/g'/g`
+shows marks; z= shows spelling suggestions; a numeric prefix such as 1z= keeps
+native behavior.
 
 The picker searches effective mappings for the current mode/buffer. Type to
 filter, C-n/C-p to navigate, CR to execute, Esc to cancel. Normal, Visual and
 Insert modes are supported. The source window and Visual range or insertion
-position are restored; changed mappings are rejected before replay. Cancelling an Insert picker resumes
-typing at the original position. Transient completion popup state is not restored.
+position are restored; changed mappings are rejected before replay. Cancelling
+an Insert picker resumes typing at the original position. Transient completion
+popup state is not restored.
 
-COMMAND                                                 *:KeymapTools*
+COMMAND                                                *keymap-tools-commands*
+                                                                *:KeymapTools*
 
 :KeymapTools [pick]      Search and execute actual effective mappings.
 :KeymapTools show        Open an interactive root hint.
@@ -92,11 +131,12 @@ COMMAND                                                 *:KeymapTools*
 :KeymapTools showkeys enable / disable / toggle
                         Explicit screencast listener actions.
 
-ENTRY ICONS                                             *keymap-tools-icons*
+ENTRY ICONS                                               *keymap-tools-icons*
 
-Hints and the picker show semantic icons by default. Built-in rules match English
-and Chinese descriptions; unmatched entries have a fallback. No icon provider is
-required. Default glyphs require a Nerd Font. icons.enabled=false hides icons.
+Hints and the picker show semantic icons by default. Built-in rules match
+English and Chinese descriptions; unmatched entries have a fallback. No icon
+provider is required. Default glyphs require a Nerd Font. icons.enabled=false
+hides icons.
 >
   tools.setup({ icons = { rules = {
     { pattern = "search", icon = "", hl = "DiagnosticInfo" },
@@ -107,23 +147,25 @@ required. Default glyphs require a Nerd Font. icons.enabled=false hides icons.
       icon = { icon = "⚒", hl = "DiagnosticWarn" } } },
   })
 <
-Groups, hints and toggles accept icon as a string, {icon=...,hl=...,ascii=...}, or false to
-suppress the entry's icon. Icons must be single-line strings; hl is optional.
-Precedence: explicit icon, custom rules, toggle state, built-in rules, fallback.
-Custom rules match Lua patterns against the lowercased description, in order.
-Group icons decorate group rows. Registered icons are returned by list() as
-detached metadata. Automatic icons are resolved at display time only.
+Groups, hints and toggles accept icon as a string,
+{icon=...,hl=...,ascii=...}, or false to suppress the entry's icon. Icons must
+be single-line strings; hl is optional. Precedence: explicit icon, custom
+rules, toggle state, built-in rules, fallback. Custom rules match Lua patterns
+against the lowercased description, in order. Group icons decorate group rows.
+Registered icons are returned by list() as detached metadata. Automatic icons
+are resolved at display time only.
 
 If theme-tools is already loaded, shared ui icons and returned highlights take
 precedence over built-in defaults. Its none mode hides all entry icons; ascii
 uses shared text labels. Custom icons/rules may provide an ascii string;
 otherwise they use the shared keymap fallback in ASCII mode. Shared overrides,
-icon modes and palette changes refresh open hints/pickers, retaining the picker
-query, selected item and input focus. Private highlight defaults follow the
-palette; public KeymapTools* overrides remain user/theme-owned. Standalone use
-does not load theme-tools. Metadata registration and list() do not initialize UI.
+icon modes and palette changes refresh open hints/pickers, retaining the
+picker query, selected item and input focus. Private highlight defaults follow
+the palette; public KeymapTools* overrides remain user/theme-owned. Standalone
+use does not load theme-tools. Metadata registration and list() do not
+initialize UI.
 
-KEY SCREENCAST                                          *keymap-tools-showkeys*
+KEY SCREENCAST                                         *keymap-tools-showkeys*
 >
   require("keymap_tools").setup({
     showkeys = {
@@ -148,24 +190,26 @@ Built-in alternative to nvzone/showkeys; no dependency or automatic shortcut.
 Default is disabled. enabled=true starts listening during setup, independently
 of defer/hints.enabled. Actions do not activate deferred hints or the picker.
 Timeout closes the window but leaves listening enabled. disable removes the
-listener, timer, window, buffer and autocmds. Setup resets history and reapplies
-enabled; tab changes clear history. The screencast preserves focus, avoids
-overlapping hints, and retains the newest entries on narrow screens.
+listener, timer, window, buffer and autocmds. Setup resets history and
+reapplies enabled; tab changes clear history. The screencast preserves focus,
+avoids overlapping hints, and retains the newest entries on narrow screens.
 
-Positions: top-left/top-center/top-right/bottom-left/bottom-center/bottom-right.
+Positions:
+top-left/top-center/top-right/bottom-left/bottom-center/bottom-right.
 show_count combines consecutive repeats (e.g. 3 j). maxkeys limits entries.
 excluded_modes replaces the whole list; matches an exact mode or a one-letter
-prefix (i also matches ic). keyformat merges with default Unicode labels, using
-keytrans() notation. Empty labels hide keys. Complete chords take precedence;
-modifier labels use <C>/<M>/<S>/<D>. winopts accepts border and zindex only.
-Mouse events and mapping-generated keys are ignored; hint replay is not counted
-twice. Highlights: KeymapToolsShowkeysActive / KeymapToolsShowkeysInactive.
+prefix (i also matches ic). keyformat merges with default Unicode labels,
+using keytrans() notation. Empty labels hide keys. Complete chords take
+precedence; modifier labels use <C>/<M>/<S>/<D>. winopts accepts border and
+zindex only. Mouse events and mapping-generated keys are ignored; hint replay
+is not counted twice. Highlights: KeymapToolsShowkeysActive /
+KeymapToolsShowkeysInactive.
 
 Migration: move showkeys options into setup().showkeys, replace ShowkeysToggle
-with KeymapTools showkeys and remove the old plugin spec. Default maxkeys is 5;
-labels use standard Unicode rather than Nerd Font glyphs.
+with KeymapTools showkeys and remove the old plugin spec. Default maxkeys is
+5; labels use standard Unicode rather than Nerd Font glyphs.
 
-REGISTRATION                                            *keymap-tools-register*
+REGISTRATION                                           *keymap-tools-register*
 >
   local handle = require("keymap_tools").register("mini.ai", {
     modes = { "o", "x" },
@@ -178,21 +222,23 @@ REGISTRATION                                            *keymap-tools-register*
   handle:dispose()
 <
 Real mappings belong to vim.keymap.set(). Registration creates metadata only.
-A source ID has one registration per buffer scope plus one global registration.
-Omit buf for global; buf=0 captures the current buffer. Buffer wipe releases its
-registrations even before setup. Per-entry modes override registration modes.
+A source ID has one registration per buffer scope plus one global
+registration. Omit buf for global; buf=0 captures the current buffer. Buffer
+wipe releases its registrations even before setup. Per-entry modes override
+registration modes.
 
-Conflict order: buffer before global, higher priority before lower, newest before
-older. Disposing an override reveals retained lower-priority sources. Repeated
-registration of the same source/scope invalidates the old handle. replace()
-validates before atomically replacing all data while retaining source/buffer.
-dispose() is idempotent and cannot remove a newer registration.
+Conflict order: buffer before global, higher priority before lower, newest
+before older. Disposing an override reveals retained lower-priority sources.
+Repeated registration of the same source/scope invalidates the old handle.
+replace() validates before atomically replacing all data while retaining
+source/buffer. dispose() is idempotent and cannot remove a newer registration.
 
 label/desc/when/hidden may be functions receiving ctx: buf, win, mode, prefix,
 operator, count, register. win is absent for a buffer with no display window.
 Use ctx rather than implicit current-window state. Callback contexts and query
-rows are detached copies. Values are evaluated on query/open; callback failures
-are returned in query diagnostics. Group hidden=true also hides descendants.
+rows are detached copies. Values are evaluated on query/open; callback
+failures are returned in query diagnostics. Group hidden=true also hides
+descendants.
 
 TOGGLES                                                 *keymap-tools-toggles*
 >
@@ -209,26 +255,28 @@ TOGGLES                                                 *keymap-tools-toggles*
 Each toggle requires keys, name (string or context callback), and get(ctx).
 get returns true (enabled), false (disabled), or nil (unknown/unavailable).
 The shared description is Disable <name>, Enable <name>, or Toggle <name>.
-Rows expose toggle={name=...,state=...}; unknown state has no state value.
-A toggle uses kind="hint", or decorates kind="mapping" if a real map exists.
+Rows expose toggle={name=...,state=...}; unknown state has no state value. A
+toggle uses kind="hint", or decorates kind="mapping" if a real map exists.
 Only actual mappings are executable; the picker replays the owner's keys.
 
-With register(), the feature owns its state, mapping and switching logic. There is no setter,
-mapping installation, state cache, polling, or automatic feature integration.
-Registration and trigger discovery never call get. Queries/opening read fresh
-state; open displays are snapshots. Reopen to see subsequent external changes.
-Getter errors or non-boolean/non-nil results show unknown state and add a get
-diagnostic to info.errors. Return nil for an expected unavailable state.
+With register(), the feature owns its state, mapping and switching logic.
+There is no setter, mapping installation, state cache, polling, or automatic
+feature integration. Registration and trigger discovery never call get.
+Queries/opening read fresh state; open displays are snapshots. Reopen to see
+subsequent external changes. Getter errors or non-boolean/non-nil results show
+unknown state and add a get diagnostic to info.errors. Return nil for an
+expected unavailable state.
 
 Toggles support modes/when/hidden and all registration scopes, priorities and
-handles. Hints/toggles compete for one metadata slot; an ordinary hint override
-removes toggle state. Within one registration, toggles win over hints.
-Use ctx.buf/ctx.win for local state. For legacy implicit-window getters, guard
-ctx.win and use nvim_win_call. Avoid loading lazy features from status getters;
-use package.loaded or register after the owner loads. Session settings such as
-inlay hints should read the session-wide owner state. See README for examples.
+handles. Hints/toggles compete for one metadata slot; an ordinary hint
+override removes toggle state. Within one registration, toggles win over
+hints. Use ctx.buf/ctx.win for local state. For legacy implicit-window
+getters, guard ctx.win and use nvim_win_call. Avoid loading lazy features from
+status getters; use package.loaded or register after the owner loads. Session
+settings such as inlay hints should read the session-wide owner state. See
+README for examples.
 
-TOGGLE ACTIONS                                          *keymap-tools-register_toggle*
+TOGGLE ACTIONS                                  *keymap-tools-register_toggle*
 >
   local callback, registration = tools.register_toggle("formatting", {
     keys = "<leader>tf",
@@ -238,24 +286,26 @@ TOGGLE ACTIONS                                          *keymap-tools-register_t
   })
   vim.keymap.set("n", "<leader>tf", callback, { desc = "Toggle auto format" })
 <
-register_toggle(source, spec) returns a callback and a metadata handle. It creates
-no mappings. name is a nonempty string; get(ctx) and set(enabled, ctx) are required.
-Other fields: keys, buf, modes, priority, when, hidden, icon, notify (default true).
-Match buf/modes to the mapping. buf=0 captures the current buffer.
+register_toggle(source, spec) returns a callback and a metadata handle. It
+creates no mappings. name is a nonempty string; get(ctx) and set(enabled, ctx)
+are required. Other fields: keys, buf, modes, priority, when, hidden, icon,
+notify (default true). Match buf/modes to the mapping. buf=0 captures the
+current buffer.
 
-On invocation, the callback reads state, calls set with its inverse, then reads
-back and returns actual state. It sends Name: Enabled/Disabled via vim.notify;
-notify=false suppresses successful messages. Errors, invalid state, and unknown
-initial state return nil with an error notification; unknown initial state never
-calls set. Unknown final state returns nil without a success message. Contexts
-passed to callbacks are detached. Features retain state and lazy loading policy.
+On invocation, the callback reads state, calls set with its inverse, then
+reads back and returns actual state. It sends Name: Enabled/Disabled via
+vim.notify; notify=false suppresses successful messages. Errors, invalid
+state, and unknown initial state return nil with an error notification;
+unknown initial state never calls set. Unknown final state returns nil without
+a success message. Contexts passed to callbacks are detached. Features retain
+state and lazy loading policy.
 
 Registration/queries never call setters or notify and do not initialize hints.
 The returned handle manages metadata only: replace/dispose does not change the
-callback or remove its mapping. Re-register to change action logic. The ordinary
-register() toggle metadata API stays read-only and rejects setters.
+callback or remove its mapping. Re-register to change action logic. The
+ordinary register() toggle metadata API stays read-only and rejects setters.
 
-QUERY AND DISPLAY                                       *keymap-tools-api*
+QUERY AND DISPLAY                                           *keymap-tools-api*
 >
   local tools = require("keymap_tools")
   local items, info = tools.list({
@@ -267,12 +317,12 @@ QUERY AND DISPLAY                                       *keymap-tools-api*
   tools.hide()
   tools.refresh()
 <
-list() does not initialize UI. Rows have keys (canonical notation), kind, source,
-metadata_source, scope, buf, mode, desc, hidden and executable. Only actual
-mapping rows are executable. Toggles additionally expose toggle.name and
-toggle.state (boolean, or absent for unknown). Empty groups are omitted.
-Plug targets require plugs=true; hidden rows require include_hidden=true.
-info contains context and errors (source/field/message). Internal keycodes/map
+list() does not initialize UI. Rows have keys (canonical notation), kind,
+source, metadata_source, scope, buf, mode, desc, hidden and executable. Only
+actual mapping rows are executable. Toggles additionally expose toggle.name
+and toggle.state (boolean, or absent for unknown). Empty groups are omitted.
+Plug targets require plugs=true; hidden rows require include_hidden=true. info
+contains context and errors (source/field/message). Internal keycodes/map
 dictionaries stay private.
 
 Query scopes: effective resolves local overrides; global reads global data,
@@ -282,48 +332,229 @@ IDs. Pass win or buf to inspect another source. At an exact provider prefix,
 choice rows use the source window; no choices are generated without a window.
 
 The picker queries only actual effective mappings. Its scope filter restricts
-that effective set, excluding shadowed global maps. show()/pick() operate on the
-active source window; list() can inspect another window without changing focus.
+that effective set, excluding shadowed global maps. show()/pick() operate on
+the active source window; list() can inspect another window without changing
+focus.
 
 CONFIGURATION                                           *keymap-tools-options*
 
 hints.enabled/ delay/ operators/ triggers    Automatic hint behavior.
-window.width/ height/ columns/ border       Hint appearance; width is total width.
-icons.enabled/ rules                        Entry icons and custom matching rules.
+window.width/ height/ columns/ border       Hint appearance; width is total
+width. icons.enabled/ rules                        Entry icons and custom
+matching rules.
 picker                                      selection-tools picker options.
 showkeys                                    Optional recent-key screencast.
-presets                                     true/false or individual catalog flags.
+presets                                     true/false or individual catalog
+flags.
 providers                                   registers/marks/spelling options.
 
-hints.delay is in milliseconds and applies until the first hint window appears.
-Once visible, subgroup navigation and <BS> update immediately. Closing the
-window and starting a new automatic hint session applies the delay again.
+hints.delay is in milliseconds and applies until the first hint window
+appears. Once visible, subgroup navigation and <BS> update immediately.
+Closing the window and starting a new automatic hint session applies the delay
+again.
 
 Preset flags: motions/navigation/windows/folds/textobjects. Provider options
 accept false or {enabled=false}; spelling.suggestions is 1..62 (default 20).
 No add()/get_keymaps() or positional registration API remains. Use register(),
 list(), hints/window options and explicit user key bindings.
 
-Highlights: KeymapToolsNormal, KeymapToolsBorder, KeymapToolsKey, KeymapToolsGroup.
-Also KeymapToolsSeparator, KeymapToolsMuted, KeymapToolsIcon and
-KeymapToolsIconBlue/Cyan/Green/Orange/Purple/Red/Yellow. Setup and colorscheme
-handlers apply theme-linked defaults without overwriting existing definitions.
-See README.md for installation and validation details.
+Highlights: KeymapToolsNormal, KeymapToolsBorder, KeymapToolsKey,
+KeymapToolsGroup. Also KeymapToolsSeparator, KeymapToolsMuted, KeymapToolsIcon
+and KeymapToolsIconBlue/Cyan/Green/Orange/Purple/Red/Yellow. Setup and
+colorscheme handlers apply theme-linked defaults without overwriting existing
+definitions. See README.md for installation and validation details.
 
 NESTED PICKER INPUT                                      *keymap-tools-nested*
 
-The default picker scope is "effective": buffer-local mappings precede globals,
-including search results. Alt+b toggles buffer mappings; Alt+g toggles globals.
-The title reports both states. Query text and still-visible selections survive
-switches, including an empty view with both scopes hidden. New pickers reset to
-the configured initial scope. picker.scope chooses that scope; customize
-picker.keys.toggle_buffer / picker.keys.toggle_global with lists of keys.
+The default picker scope is "effective": buffer-local mappings precede
+globals, including search results. Alt+b toggles buffer mappings; Alt+g
+toggles globals. The title reports both states. Query text and still-visible
+selections survive switches, including an empty view with both scopes hidden.
+New pickers reset to the configured initial scope. picker.scope chooses that
+scope; customize picker.keys.toggle_buffer / picker.keys.toggle_global with
+lists of keys.
 
 Calling pick() from selection-tools input opens a temporary child. Confirm to
 return to the original input and replay its mapping in the original mode.
 Cancel preserves the parent's query, cursor, selection, marks and preview.
 Calling pick() again closes the keymap picker instead of nesting recursively.
-Closing the parent or leaving the chain cancels pending replay without stealing
-focus from another editor window. Shadowed global mappings are never offered.
+Closing the parent or leaving the chain cancels pending replay without
+stealing focus from another editor window. Shadowed global mappings are never
+offered.
 
-vim:tw=78:ts=8:ft=help:norl:
+==============================================================================
+LIFECYCLE                                   *keymap-tools-reference-lifecycle*
+
+`setup(nil)` and `setup({})` start from fresh defaults. Options are copied
+before use; dictionaries merge recursively and lists replace defaults,
+including empty lists. Validation completes before any working configuration,
+listener or view is replaced. Repeated setup does not accumulate triggers,
+timers or observers.
+
+>lua
+    local tools = require("keymap_tools")
+    tools.disable() -- Release runtime resources; retain options and live screencast enablement.
+    tools.enable()  -- Restore that configuration, or defaults before the first setup.
+    print(tools.is_enabled()) -- Includes a deferred setup waiting for VimEnter.
+    tools.dispose() -- Release resources and forget configuration; safe when cold/repeated.
+<
+
+Both disable and dispose close owned hints/pickers/screencasts, detach
+automatic prefix mappings and listeners, cancel pending startup/refresh/replay
+work, and unsubscribe from themes. A pending Visual/operator hint is cancelled
+without editing source text. User replacements and adopted windows/buffers are
+preserved. External `register()`/`register_toggle()` handles and user mappings
+remain owned by their callers; release those handles explicitly when their
+feature unloads. The static `:KeymapTools` command remains available. Explicit
+`show()`, `pick()` or `refresh()` enables the plugin again; `list()` and
+metadata registration never activate it. After disposal, explicit use starts
+from defaults.
+
+==============================================================================
+CONFIGURATION                           *keymap-tools-reference-configuration*
+
+>lua
+    require("keymap_tools").setup({
+      defer = true, -- Defer startup initialization until VimEnter
+      hints = {
+        enabled = true, -- Automatic hints only; explicit show()/pick() remain usable
+        delay = 200, -- Initial display only, in milliseconds
+        operators = true, -- Start hints on entering operator-pending mode
+        filter = function(ctx) -- Automatic hints only; default excludes special buffers
+          return ctx.buftype == ""
+        end,
+        triggers = {
+          { prefix = "<leader>", modes = { "n", "x", "o" } },
+          { prefix = "<localleader>", modes = { "n", "x", "o" } },
+          { prefix = "g", modes = { "n", "x", "o" } },
+          { prefix = "z", modes = { "n", "x", "o" } },
+          { prefix = "[", modes = { "n", "x", "o" } },
+          { prefix = "]", modes = { "n", "x", "o" } },
+          { prefix = "<C-w>", modes = { "n", "x", "o" } },
+        },
+      },
+      window = { width = 80, height = 16, columns = 2, border = "rounded" },
+      icons = { enabled = true, rules = {} },
+      picker = {}, -- selection-tools options, e.g. layout = { width = 0.7 }
+      showkeys = { enabled = false }, -- Optional recent-key screencast; see below
+      presets = true,
+      providers = {
+        registers = true, -- Or { clipboard = true } to read clipboard previews
+        marks = true,
+        spelling = { suggestions = 20 }, -- 1..62 selector keys
+      },
+    })
+<
+
+Trigger lists replace defaults as a whole, including an empty list. Provider
+triggers are enabled by their own options, subject to `hints.enabled`; they do
+not inherit modes from unrelated prefix rules. Set a provider to `false` or `{
+enabled = false }` to disable it. Trigger modes are `n/x/o/i/c`.
+
+`hints.filter(ctx)` decides which automatic triggers may attach, including
+provider and operator-pending hints. It receives `buf`, `win`, `mode`,
+`prefix` (expanded key notation such as `<Space>`), `buftype`, and `filetype`.
+Operator entry uses an empty prefix. Return `true` to allow a trigger; errors
+and other return values skip it. The filter is checked again when a trigger
+fires, and never changes explicit `show()`, `pick()` or `list()` calls. Exact
+native mappings retain precedence, including `<Nop>` bindings. For example, to
+opt a dashboard into Normal-mode leader hints while retaining ordinary-buffer
+behavior:
+
+>lua
+    hints = {
+      filter = function(ctx)
+        return ctx.buftype == ""
+          or (ctx.buftype == "nofile" and ctx.filetype == "my_dashboard"
+            and ctx.mode == "n" and vim.keycode(ctx.prefix) == vim.g.mapleader)
+      end,
+    }
+<
+
+Set `presets = false`, or disable individual `motions`, `navigation`,
+`windows`, `folds`, and `textobjects` catalogs in a presets table. These are
+descriptions; actual Neovim mappings always take precedence.
+
+`window.width` is the total hint width. `columns = 2` is the default; set it
+to `1` for a single column. Paging covers both columns and displays the actual
+range of candidates, including a partially filled final page. Space is
+displayed as `␣`. Special keys use compact labels such as `↵`, `⇥`, `←` and
+`Ctrl+w`; query results and mapping execution retain canonical key notation.
+Long descriptions end in `…`. Bordered hints show scrolling keys at the bottom
+left and the candidate range at the bottom right, leaving all content rows
+available. Very narrow borders keep the range; borderless hints use a content
+footer.
+
+==============================================================================
+ENTRY ICONS                 *keymap-tools-reference-configuration-entry-icons*
+
+Icons use built-in rules matching English or Chinese descriptions (search,
+Git, files, LSP, windows, etc.), toggle state, and a fallback for unmatched
+entries. No icon plugin is required; the default glyphs need a Nerd Font. Set
+`icons = { enabled = false }` to remove the icon column. To use custom glyphs,
+add rules in order; patterns match the lowercased description:
+
+>lua
+    require("keymap_tools").setup({
+      icons = { rules = {
+        { pattern = "search", icon = "", hl = "DiagnosticInfo" },
+        { pattern = "build", icon = "⚒", hl = "Constant" },
+      } },
+    })
+
+    require("keymap_tools").register("project", {
+      groups = { { prefix = "<leader>p", label = "Project", icon = "󰉋" } },
+      hints = { { keys = "<leader>pb", desc = "Build", icon = {
+        icon = "⚒", ascii = "B", hl = "DiagnosticWarn",
+      } } },
+    })
+<
+
+Groups, hints and toggles accept a static `icon` string, `{ icon = "…", hl =
+"…", ascii = "B" }`, or `false` to suppress that entry's icon. Explicit icons
+take precedence over custom rules, then toggle state, built-in rules and the
+fallback. Registration icons are also returned by `list()` as detached
+metadata; inferred icons are resolved only for presentation. An icon on a
+group decorates that group row.
+
+Highlights link to the active theme by default: `KeymapToolsKey`,
+`KeymapToolsSeparator`, `KeymapToolsGroup`, `KeymapToolsMuted`,
+`KeymapToolsIcon`, and
+`KeymapToolsIconBlue/Cyan/Green/Orange/Purple/Red/Yellow`. Setup and
+colorscheme handlers apply defaults without overwriting existing definitions.
+
+When theme-tools is loaded, automatic icons use `theme_tools.icons.get("ui",
+name)` and its returned highlight. Shared overrides and provider changes apply
+to open hints and pickers: `none` hides all entry icons; `ascii` uses shared
+text labels, including an explicit icon's optional `ascii` label. Custom icons
+without an ASCII label use the shared `keymap` fallback. The palette
+subscription supplies hint surfaces, key/group colors and separators. Private
+defaults refresh on theme changes while public `KeymapTools*` overrides remain
+untouched. Picker refreshes preserve the query, selected mapping and input
+focus. This integration never loads theme-tools just to register metadata,
+query keys or render standalone hints.
+
+==============================================================================
+COMMAND OWNERSHIP                   *keymap-tools-reference-command-ownership*
+
+Commands belong to the plugin; choose global entry keys and short aliases in
+your configuration. Registration reports same-name conflicts without replacing
+user commands. Reconfiguration refreshes only commands still owned by this
+plugin, and cleanup preserves subsequent user replacements.
+
+`:checkhealth keymap_tools` checks core runtime requirements without loading
+optional providers. The execution picker resolves selection-tools only when
+invoked.
+
+==============================================================================
+HEALTH AND INSPECTION           *keymap-tools-reference-health-and-inspection*
+
+Health reports actionable failures and a compact result for applicable checks.
+Disabled, optional and not-yet-activated features do not warn solely because
+they are inactive. Inspection does not configure plugins, start services or
+install dependencies.
+
+Test workflow (tests/README.md): registered suites, filtering, required
+fixtures and retained failure evidence.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
