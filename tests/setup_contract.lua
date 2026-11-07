@@ -152,6 +152,12 @@ current()
 
 -- Confirmation can already be queued when disposal closes the picker.
 local original_selection = package.loaded.selection_tools
+local original_components = package.loaded["selection_tools.components"]
+package.loaded["selection_tools.components"] = {
+  text = function(opts)
+    return opts
+  end,
+}
 local confirm, session
 package.loaded.selection_tools = {
   current = function()
@@ -181,6 +187,7 @@ wait()
 assert(session.closed and replays == 0, "Disposed picker replayed a queued mapping")
 hints.replay = replay
 package.loaded.selection_tools = original_selection
+package.loaded["selection_tools.components"] = original_components
 
 -- An adopted window/buffer must not be forced closed or wiped.
 local view = require("keymap_tools.view")
