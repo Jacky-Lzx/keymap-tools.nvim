@@ -576,5 +576,11 @@ your configuration. Registration reports same-name conflicts without replacing
 user commands. Reconfiguration refreshes only commands still owned by this
 plugin, and cleanup preserves subsequent user replacements.
 
-`:checkhealth keymap_tools` checks picker and optional theme providers without
-loading them. Core hints do not require selection-tools; the execution picker does.
+`:checkhealth keymap_tools` checks core runtime requirements without loading optional
+providers. The execution picker resolves selection-tools only when invoked.
+
+## Health and inspection
+
+Health reports actionable failures and a compact result for applicable checks. Disabled,
+optional and not-yet-activated features do not warn solely because they are inactive.
+Inspection does not configure plugins, start services or install dependencies.
