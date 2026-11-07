@@ -1,0 +1,562 @@
+{
+  "version": 1,
+  "default": [
+    "unit",
+    "format"
+  ],
+  "defaults": {},
+  "cases": [
+    {
+      "name": "runner-contracts",
+      "suite": "unit",
+      "command": [
+        "{python}",
+        "tests/runner_checks.py"
+      ],
+      "files": [
+        "tests/runner_checks.py"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "command_ownership",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/command_ownership.lua"
+      ],
+      "files": [
+        "tests/command_ownership.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "setup_contract",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/setup_contract.lua"
+      ],
+      "files": [
+        "tests/setup_contract.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "health",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/health.lua"
+      ],
+      "files": [
+        "tests/health.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "core",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/core.lua"
+      ],
+      "files": [
+        "tests/core.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "layout",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/layout.lua"
+      ],
+      "files": [
+        "tests/layout.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "icons",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/icons.lua"
+      ],
+      "files": [
+        "tests/icons.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "registry",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/registry.lua"
+      ],
+      "files": [
+        "tests/registry.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "query",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/query.lua"
+      ],
+      "files": [
+        "tests/query.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "toggles",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/toggles.lua"
+      ],
+      "files": [
+        "tests/toggles.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "toggle_actions",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/toggle_actions.lua"
+      ],
+      "files": [
+        "tests/toggle_actions.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "providers",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/providers.lua"
+      ],
+      "files": [
+        "tests/providers.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "performance",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/performance.lua"
+      ],
+      "files": [
+        "tests/performance.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "refresh",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/refresh.lua"
+      ],
+      "files": [
+        "tests/refresh.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "triggers",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/triggers.lua"
+      ],
+      "files": [
+        "tests/triggers.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "filter",
+      "suite": "integration",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-l",
+        "tests/filter.lua"
+      ],
+      "files": [
+        "tests/filter.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "lazy",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-c",
+        "lua local ok, err = pcall(dofile, 'tests/lazy.lua'); if not ok then print(err); vim.cmd('cquit 1') end",
+        "+qa!"
+      ],
+      "files": [
+        "tests/lazy.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "lazy_explicit",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-c",
+        "lua local ok, err = pcall(dofile, 'tests/lazy_explicit.lua'); if not ok then print(err); vim.cmd('cquit 1') end",
+        "+qa!"
+      ],
+      "files": [
+        "tests/lazy_explicit.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "showkeys",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-c",
+        "lua local ok, err = pcall(dofile, 'tests/showkeys.lua'); if not ok then print(err); vim.cmd('cquit 1') end",
+        "+qa!"
+      ],
+      "files": [
+        "tests/showkeys.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "setup_contract-2",
+      "suite": "unit",
+      "command": [
+        "{nvim}",
+        "--headless",
+        "-n",
+        "-u",
+        "NONE",
+        "-i",
+        "NONE",
+        "--noplugin",
+        "-c",
+        "lua local ok, err = pcall(dofile, 'tests/setup_contract.lua'); if not ok then print(err); vim.cmd('cquit 1') end",
+        "+qa!"
+      ],
+      "files": [
+        "tests/setup_contract.lua"
+      ],
+      "timeout": 90
+    },
+    {
+      "name": "tui",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/tui.py"
+      ],
+      "files": [
+        "tests/tui.py"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py"
+      ],
+      "files": [
+        "tests/advanced_tui.py"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua",
+        "path:{root}/../motion-tools.nvim/lua/motion_tools/init.lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui-2",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py",
+        "tests/insert_picker_tui.lua"
+      ],
+      "files": [
+        "tests/advanced_tui.py",
+        "tests/insert_picker_tui.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui-3",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py",
+        "tests/nested_picker_tui.lua"
+      ],
+      "files": [
+        "tests/advanced_tui.py",
+        "tests/nested_picker_tui.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui-4",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py",
+        "tests/showkeys_tui.lua"
+      ],
+      "files": [
+        "tests/advanced_tui.py",
+        "tests/showkeys_tui.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui-5",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py",
+        "tests/lifecycle_tui.lua"
+      ],
+      "files": [
+        "tests/advanced_tui.py",
+        "tests/lifecycle_tui.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "advanced_tui-6",
+      "suite": "integration",
+      "command": [
+        "{python}",
+        "tests/advanced_tui.py",
+        "tests/theme_tui.lua"
+      ],
+      "files": [
+        "tests/advanced_tui.py",
+        "tests/theme_tui.lua"
+      ],
+      "requires": [
+        "path:{root}/../selection-tools.nvim/lua",
+        "path:{root}/../theme-tools.nvim/lua",
+        "path:{root}/../selection-tools.nvim/lua"
+      ],
+      "timeout": 120
+    },
+    {
+      "name": "stylua",
+      "suite": "format",
+      "command": [
+        "stylua",
+        "--check",
+        "lua",
+        "plugin",
+        "tests"
+      ],
+      "files": [],
+      "timeout": 90
+    }
+  ],
+  "support": {
+    "tests/tui.lua": "Loaded by tests/tui.py",
+    "tests/advanced_tui.lua": "Loaded by tests/advanced_tui.py",
+    "tests/run.sh": "Stable shell entry point for tests/run.py"
+  },
+  "manual": {},
+  "fixtures": {
+    "selection-tools.nvim": {
+      "repository": "Jacky-Lzx/selection-tools.nvim",
+      "revision": "1dff1fa0efa8614e784e457c79eefd2d257ba312",
+      "path": "{root}/../selection-tools.nvim"
+    },
+    "theme-tools.nvim": {
+      "repository": "Jacky-Lzx/theme-tools.nvim",
+      "revision": "6eb5fc94618dd0f8e03d97515f8852274a3e6167",
+      "path": "{root}/../theme-tools.nvim"
+    },
+    "motion-tools.nvim": {
+      "repository": "Jacky-Lzx/motion-tools.nvim",
+      "revision": "2ac957bf819c5bd39c9da390e264cd9be251e932",
+      "path": "{root}/../motion-tools.nvim"
+    }
+  }
+}
